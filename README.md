@@ -1,2 +1,2 @@
 # tropelet
-Lets have fun!
+Job worker service.
