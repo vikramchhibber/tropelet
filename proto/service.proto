@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "github.com/troplet/pkg/proto";
+
+import "proto/messages.proto";
+
+service Server {
+  rpc ListProcesses(ListProcessesRequest) returns (ListProcessesResponse);
+  rpc LaunchProcess(LaunchProcessRequest) returns (stream LaunchProcessResponse);
+  rpc AttachProcess(AttachProcessRequest) returns (stream AttachProcessResponse);
+  rpc TerminateProcess(TerminateProcessRequest) returns (TerminateProcessResponse);
+}
