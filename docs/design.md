@@ -1,22 +1,39 @@
-The server and its clients will use mutual TLS authentication (mTLS) mechanism to verify each other. 
-The solution will include script to generate self-signed root certificate (CA), and scripts for signing server and client certificates.
-This generated root CA will be included in both the client and server certificate authority bundles, enabling them to verify each other’s certificate chain.
-The TLS client authentication policy on server side will mandate requesting client certificate and verification during handshake. The client will also verify server certificate.
+# Security
+## Authentication
+### mTLS
+1. The server and its clients will use mutual TLS authentication (mTLS) mechanism to verify each other. 
+2. The solution will include script to generate self-signed root certificate (CA), and scripts for signing server and client certificates.
+3. This generated root CA will be included in both the client and server certificate authority bundles, enabling them to verify each other’s certificate chain.
+4. The TLS client authentication policy on server side will mandate requesting client certificate and verification during handshake. The client will also verify server certificate.
+5. All certificates will be **ECDSA** algorithms based, as these are computationally faster than RSA, providing the same level of security with smaller key sizes. The signing algorithm for the certificate will be **ecdsa-with-SHA384**.
 
-An ideal implementation introduces intermediate CA level for signing client and server certificates that minimizes the risk of compromising root CA if intermediate CA is compromised. We will not introduce intermediate CA level for this solution.
+>An ideal implementation introduces intermediate CA level for signing client and server certificates that minimizes the risk of compromising root CA if intermediate CA is compromised. We will not introduce intermediate CA level for this solution.
 
-All certificates will be ECDSA algorithms based, as they are computationally faster than RSA, providing the same level of security with smaller key sizes. The signing algorithm for the certificate will be “ecdsa-with-SHA384”.
+### Choice of cipher suit and TLS version
+1. Since both the client and server are under our control and the server does not need to interoperate with multiple types of clients, we will use only TLS 1.3 version. This version of TLS includes strongest cipher suites and key exchange algorithms supporting perfect forward secrecy (**ECDHE**). We will support EC curves **P384** and **P521**.
+2. Since the underlying TLS go library does not support application to configure the bulk encryption algorithms, we will rely on the algorithm chosen by the library. This should ideally be **AES-GCM** 128 or 256.
+
+>Newer version of Go >= 1.24 also support post-quantum key exchange (**ML-KEM**) mechanisms. The solution will not support this.
+
+## Client identification
+1. A client can start a job by connecting to the server. However, the network connection may break for various reasons. The solution will provide ability to query the status of running jobs and reattach to continue receiving output. Therefore, the server must be able to identify connecting clients and associate some internal state with them.
+2. Since we are using mTLS for authentication, the server will identify clients based solely on the verified client certificate. It will not rely on any other identifier from application-level messages.
+3. The server will derive a composite key using the **SHA-1** hash of the received client certificate’s **Issuer** and **Serial Number**. This key will be used by server to associate client connections with internal state.
+4. Assuming every CA signs certificates with unique serial numbers, this approach ensures that each client can be uniquely identified, even if certificates are issued by the same authority.
+5. Including the **Issuer** in the identifier ensures that if the issuing authority changes in the future, the server can still uniquely identify certificates/clients, even in the event of a serial number conflict.
+
+## Authorization
+No authorization policy will be defined for connecting clients in this solution.
+
+# Server Design
+1. The server will implement a gRPC service and will support multiple concurrent client connections. These connections may originate from clients with the same identity, such as when multiple CLI clients are started with same client certificate. Thus, the server will have ability to fork the output of running job to multiple gRPC client connections.
+2. The server internally will have a map associating **SHA-1** client identity with multiple incoming gRPC connection streams and multiple running job states.
+3. If job is running, the server will continue to maintain state associated with client identity even after all incoming client connections have terminated under that identity, since the solution will support CLI clients reattaching to running jobs.
+4. The server will not maintain any state for client-id once all its client connections and jobs have terminated.
+5. The server will support graceful shutdown terminating running jobs and client connections if **SIGINT**, **SIGTERM** signals are received.
+6. The server will not cache the output of running jobs when no client is attached. Consequently, if a client loses its connection, it will not be able to retrieve any previously generated output from the job.
+7. The server will disconnect client connections once the associated job terminates.
 
 
-Choice of cipher suits and TLS version
-
-Since both the client and server are under our control and the server does not need to interoperate with multiple types of clients, we will use only TLS 1.3 version. This version of TLS includes strongest cipher suites and key exchange algorithms supporting perfect forward secrecy (ECDHE). We will support EC curves P384 and P521.
-
-Since the underlying TLS go library does not support application to configure the bulk encryption algorithms, we will rely on the algorithm chosen by the library. This should ideally be AES-GCM 128 or 256.
-
-
-Client identification
-Since we are using mTLS for authentication, the server will identify clients based solely on the verified client certificate. It will not rely on any other identifier from application-level messages.
-The server will derive a composite key using the SHA-256 hash of the received client certificate’s Issuer and Serial Number. Assuming every CA signs certificates with unique serial numbers, this approach ensures that each client can be uniquely identified, even if certificates are issued by the same authority.
-Including the Issuer in the identifier ensures that if the issuing authority changes in the future, the server can still uniquely identify certificates/clients, even in the event of a serial number conflict.
-
+# gRPC
+# CLI Client
