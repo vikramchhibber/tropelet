@@ -6,25 +6,17 @@ option go_package = "github.com/troplet/pkg/proto";
 
 import "google/protobuf/timestamp.proto";
 
-enum ProcessState {
-  Unspecified = 0;
-  Running = 1;
-  Terminating = 2;
-  Terminated = 3;
-}
-
 message ProcessEntry {
   string id = 1;
   string name = 2;
-  ProcessState state = 3;
-  google.protobuf.Timestamp start_ts = 4;
-  google.protobuf.Timestamp end_ts = 5;
+  google.protobuf.Timestamp start_ts = 3;
+  google.protobuf.Timestamp end_ts = 4;
 }
 
 message ProcessStreamEntry {
   string id = 1;
-  string std_output = 2;
-  string std_error = 3;
+  bytes std_output = 2;
+  bytes std_error = 3;
 }
 
 message ListProcessesRequest {
