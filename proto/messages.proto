@@ -18,10 +18,10 @@ message JobEntry {
 }
 
 message JobStreamEntry {
-  // Standard output entry stream
-  bytes std_output = 1;
-  // Standard error entry stream
-  bytes std_error = 2;
+  // Standard output or error stream entry
+  bytes entry = 1;
+  // True if entry is standard error
+  bool is_std_error = 2;
 }
 
 message ListJobesRequest {
