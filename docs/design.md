@@ -78,4 +78,4 @@ tctl terminate ba7371d5-a848-4b5d-b90a-7479342051a4
 
 
 # gRPC
-[The service proto definition] (https://github.com/vikramchhibber/tropelet/tree/design_doc/proto)
+The service proto definition: https://github.com/vikramchhibber/tropelet/tree/design_doc/proto
