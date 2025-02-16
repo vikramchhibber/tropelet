@@ -6,9 +6,14 @@ option go_package = "github.com/troplet/pkg/proto";
 
 import "proto/messages.proto";
 
+// gRPC service definition for job execution service
 service JobService {
+  // List all the running jobs for connecting client.
   rpc ListJobes(ListJobesRequest) returns (ListJobesResponse);
+  // Request a new job launch on the server side.
   rpc LaunchJob(LaunchJobRequest) returns (stream LaunchJobResponse);
+  // Attaches to a running job and gets its stderr, stdout streams.
   rpc AttachJob(AttachJobRequest) returns (stream AttachJobResponse);
+  // Request termination of running job.
   rpc TerminateJob(TerminateJobRequest) returns (TerminateJobResponse);
 }

@@ -7,31 +7,41 @@ option go_package = "github.com/troplet/pkg/proto";
 import "google/protobuf/timestamp.proto";
 
 message JobEntry {
+  // Service assigned unique identity (UUID v4) for the job.
   string id = 1;
+  // Command string of the job including the path and arguments.
   string command = 2;
+  // Start time of the job.
   google.protobuf.Timestamp start_ts = 3;
+  // End time of the job.
   google.protobuf.Timestamp end_ts = 4;
 }
 
 message JobStreamEntry {
-  string id = 1;
-  bytes std_output = 2;
-  bytes std_error = 3;
+  // Standard output entry stream
+  bytes std_output = 1;
+  // Standard error entry stream
+  bytes std_error = 2;
 }
 
 message ListJobesRequest {
 }
 
 message ListJobesResponse {
+  // The response may include terminated job entries
+  // if at least one job is running.
   repeated JobEntry jobs = 1;
 }
 
 message LaunchJobRequest {
+  // Command string of the job including the path and arguments.
   string command = 1;
 }
 
 message LaunchJobResponse {
-  JobStreamEntry stream_entry = 1;
+  // Unique job identity assigned by the service
+  string id = 1;
+  JobStreamEntry stream_entry = 2;
 }
 
 message AttachJobRequest {
@@ -43,6 +53,8 @@ message AttachJobResponse {
 }
 
 message TerminateJobRequest {
+  // Unique job identity returned in LaunchJobResponse or ListJobsResponse.
+  // Service will ignore unknown job id.
   string id = 1;
 }
 
