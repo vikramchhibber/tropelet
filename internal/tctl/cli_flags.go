@@ -29,8 +29,8 @@ func (c *Client) Execute() error {
 	}
 	var execCmd = &cobra.Command{
 		Use:   "exec",
-		Short: "Executes command on server",
-		Long:  "The first argument is name of command and the rest are the command arguments",
+		Short: "Executes job on server",
+		Long:  "The first argument is name of command and the rest are the its arguments",
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			c.init()

@@ -2,6 +2,8 @@ package shared
 
 import (
 	"os"
+	"os/signal"
+	"syscall"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -31,4 +33,15 @@ func InitializeLogger() Logger {
 
 	// Build the logger with this core
 	return zap.New(core).Sugar()
+}
+
+func RegisterShutdownSigCallback(shutdownSigCB func()) {
+	sigChannel := make(chan os.Signal, 1)
+	signal.Notify(sigChannel, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		switch <-sigChannel {
+		case syscall.SIGINT, syscall.SIGTERM:
+			shutdownSigCB()
+		}
+	}()
 }
