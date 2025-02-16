@@ -1,8 +1,8 @@
 # Introduction
-These notes cover brief design and scope of a job execution service that can run arbitrary Linux commands initiated by authorized remote clients.
+These notes cover brief design and scope of a job execution service that can run arbitrary Linux jobs initiated by authenticated remote clients.
 This prototype consists of three components:
-1.	A library providing APIs to launch, terminate, and check the status of Linux processes. It will isolate each job in its own network namespace with separate PID and filesystem, and it uses cgroups to limit CPU, memory, and I/O usage.
-2.	The gRPC service leveraging this library to offer server-side calls for launching, terminating, and querying jobs. The server will authenticate the connecting clients using certificates.
+1.	A library providing APIs to launch, terminate, and check the status of Linux job. It will isolate each job in its own network namespace with separate PID and filesystem, and it uses cgroups to limit CPU, memory, and I/O usage.
+2.	The gRPC service leveraging this library to offer server-side calls for launching, terminating, and querying running job status. The server will authenticate the connecting clients using certificates.
 3.	The command-line interface utility connecting the gRPC service to interact with the user and making client side gRPC calls.
 
 # Security
@@ -23,9 +23,9 @@ This prototype consists of three components:
 >Newer version of Go >= 1.24 also support post-quantum key exchange (**ML-KEM**) mechanisms. The solution will not support this.
 
 ## Client identification
-1. A client can start a job by connecting to the server. However, the network connection may break for various reasons. The solution will provide ability to query the status of running jobs and reattach to continue receiving output. Therefore, the server must be able to identify connecting clients and associate some internal state with them.
+1. A client can start a job by connecting to the server. However, the network connection may break for various reasons. The solution will provide ability to query the status of running jobs and reattach to continue receiving job output. Therefore, the server must be able to identify connecting clients and associate some internal state with them.
 2. Since we are using mTLS for authentication, the server will identify clients based solely on the verified client certificate. It will not rely on any other identifier from application-level messages.
-3. The server will derive a composite key using the **SHA-1** hash of the received client certificate’s **Issuer** and **Serial Number**. This key will be used by server to associate client connections with internal state.
+3. The server will derive a composite key using the **SHA-1** hash (Weaker hash, meant for key and no cryptographic significance) of the received client certificate’s **Issuer** and **Serial Number**. This key will be used by server to associate client connections with internal state.
 4. Assuming every CA signs certificates with unique serial numbers, this approach ensures that each client can be uniquely identified, even if certificates are issued by the same authority.
 5. Including the **Issuer** in the identifier ensures that if the issuing authority changes in the future, the server can still uniquely identify certificates/clients, even in the event of a serial number conflict.
 
@@ -34,14 +34,14 @@ We will restrict the use of commands that pose a risk to data integrity or syste
 
 
 # Server
-1. The server will implement a gRPC service and will support multiple concurrent client connections. These connections may originate from clients with the same identity, such as when multiple CLI clients are started with same client certificate. Thus, the server will have ability to fork the output of running job to multiple gRPC client connections.
+1. The server service will implement a gRPC service and will support multiple concurrent client connections. These connections may originate from clients with the same identity, such as when multiple CLI clients are started with same client certificate. Thus, the server will have ability to fork the output of running job to multiple gRPC client connections.
 2. The server internally will have a map associating **SHA-1** client identity with multiple incoming gRPC connection streams and multiple running job states.
-3. If job is running, the server will continue to maintain state associated with client identity even after all incoming client connections have terminated under that identity, since the solution will support CLI clients reattaching to running jobs.
+3. If a job is running, the server will continue to maintain state associated with client identity even after all incoming client connections have terminated under that identity, since the solution will support CLI clients reattaching to running jobs.
 4. The server will not maintain any state for client-id once all its client connections and jobs have terminated.
 5. The server will support graceful shutdown terminating running jobs and client connections if **SIGINT**, **SIGTERM** signals are received.
 6. The server will not cache the output of running jobs when no client is attached. Consequently, if a client loses its connection, it will not be able to retrieve any previously generated output from the job.
 7. The server will disconnect client connections once the associated job terminates.
-8. Since the expectation of the server solution is to create c-groups, network namespaces and mounts, the server needs to run as superuser/privileged process. Many of the operations like c-group, change root, cannot be performed just by using **capabilities**.
+8. Since the expectation for the server solution is to create c-groups, network namespaces and mounts, the server needs to run as superuser/privileged process. Many of the operations like c-group, change root, cannot be performed just by using **capabilities**.
 
 
 # Exec library
