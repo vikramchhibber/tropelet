@@ -22,30 +22,30 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type ProcessEntry struct {
+type JobEntry struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Command       string                 `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
 	StartTs       *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=start_ts,json=startTs,proto3" json:"start_ts,omitempty"`
 	EndTs         *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=end_ts,json=endTs,proto3" json:"end_ts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ProcessEntry) Reset() {
-	*x = ProcessEntry{}
+func (x *JobEntry) Reset() {
+	*x = JobEntry{}
 	mi := &file_proto_messages_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ProcessEntry) String() string {
+func (x *JobEntry) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ProcessEntry) ProtoMessage() {}
+func (*JobEntry) ProtoMessage() {}
 
-func (x *ProcessEntry) ProtoReflect() protoreflect.Message {
+func (x *JobEntry) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_messages_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -57,40 +57,40 @@ func (x *ProcessEntry) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ProcessEntry.ProtoReflect.Descriptor instead.
-func (*ProcessEntry) Descriptor() ([]byte, []int) {
+// Deprecated: Use JobEntry.ProtoReflect.Descriptor instead.
+func (*JobEntry) Descriptor() ([]byte, []int) {
 	return file_proto_messages_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ProcessEntry) GetId() string {
+func (x *JobEntry) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *ProcessEntry) GetName() string {
+func (x *JobEntry) GetCommand() string {
 	if x != nil {
-		return x.Name
+		return x.Command
 	}
 	return ""
 }
 
-func (x *ProcessEntry) GetStartTs() *timestamppb.Timestamp {
+func (x *JobEntry) GetStartTs() *timestamppb.Timestamp {
 	if x != nil {
 		return x.StartTs
 	}
 	return nil
 }
 
-func (x *ProcessEntry) GetEndTs() *timestamppb.Timestamp {
+func (x *JobEntry) GetEndTs() *timestamppb.Timestamp {
 	if x != nil {
 		return x.EndTs
 	}
 	return nil
 }
 
-type ProcessStreamEntry struct {
+type JobStreamEntry struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	StdOutput     []byte                 `protobuf:"bytes,2,opt,name=std_output,json=stdOutput,proto3" json:"std_output,omitempty"`
@@ -99,20 +99,20 @@ type ProcessStreamEntry struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ProcessStreamEntry) Reset() {
-	*x = ProcessStreamEntry{}
+func (x *JobStreamEntry) Reset() {
+	*x = JobStreamEntry{}
 	mi := &file_proto_messages_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ProcessStreamEntry) String() string {
+func (x *JobStreamEntry) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ProcessStreamEntry) ProtoMessage() {}
+func (*JobStreamEntry) ProtoMessage() {}
 
-func (x *ProcessStreamEntry) ProtoReflect() protoreflect.Message {
+func (x *JobStreamEntry) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_messages_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -124,52 +124,52 @@ func (x *ProcessStreamEntry) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ProcessStreamEntry.ProtoReflect.Descriptor instead.
-func (*ProcessStreamEntry) Descriptor() ([]byte, []int) {
+// Deprecated: Use JobStreamEntry.ProtoReflect.Descriptor instead.
+func (*JobStreamEntry) Descriptor() ([]byte, []int) {
 	return file_proto_messages_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ProcessStreamEntry) GetId() string {
+func (x *JobStreamEntry) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *ProcessStreamEntry) GetStdOutput() []byte {
+func (x *JobStreamEntry) GetStdOutput() []byte {
 	if x != nil {
 		return x.StdOutput
 	}
 	return nil
 }
 
-func (x *ProcessStreamEntry) GetStdError() []byte {
+func (x *JobStreamEntry) GetStdError() []byte {
 	if x != nil {
 		return x.StdError
 	}
 	return nil
 }
 
-type ListProcessesRequest struct {
+type ListJobesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListProcessesRequest) Reset() {
-	*x = ListProcessesRequest{}
+func (x *ListJobesRequest) Reset() {
+	*x = ListJobesRequest{}
 	mi := &file_proto_messages_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListProcessesRequest) String() string {
+func (x *ListJobesRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListProcessesRequest) ProtoMessage() {}
+func (*ListJobesRequest) ProtoMessage() {}
 
-func (x *ListProcessesRequest) ProtoReflect() protoreflect.Message {
+func (x *ListJobesRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_messages_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -181,32 +181,32 @@ func (x *ListProcessesRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListProcessesRequest.ProtoReflect.Descriptor instead.
-func (*ListProcessesRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListJobesRequest.ProtoReflect.Descriptor instead.
+func (*ListJobesRequest) Descriptor() ([]byte, []int) {
 	return file_proto_messages_proto_rawDescGZIP(), []int{2}
 }
 
-type ListProcessesResponse struct {
+type ListJobesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Entries       []*ProcessEntry        `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	Jobs          []*JobEntry            `protobuf:"bytes,1,rep,name=jobs,proto3" json:"jobs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListProcessesResponse) Reset() {
-	*x = ListProcessesResponse{}
+func (x *ListJobesResponse) Reset() {
+	*x = ListJobesResponse{}
 	mi := &file_proto_messages_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListProcessesResponse) String() string {
+func (x *ListJobesResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListProcessesResponse) ProtoMessage() {}
+func (*ListJobesResponse) ProtoMessage() {}
 
-func (x *ListProcessesResponse) ProtoReflect() protoreflect.Message {
+func (x *ListJobesResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_messages_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -218,39 +218,39 @@ func (x *ListProcessesResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListProcessesResponse.ProtoReflect.Descriptor instead.
-func (*ListProcessesResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListJobesResponse.ProtoReflect.Descriptor instead.
+func (*ListJobesResponse) Descriptor() ([]byte, []int) {
 	return file_proto_messages_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *ListProcessesResponse) GetEntries() []*ProcessEntry {
+func (x *ListJobesResponse) GetJobs() []*JobEntry {
 	if x != nil {
-		return x.Entries
+		return x.Jobs
 	}
 	return nil
 }
 
-type LaunchProcessRequest struct {
+type LaunchJobRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Command       string                 `protobuf:"bytes,1,opt,name=command,proto3" json:"command,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *LaunchProcessRequest) Reset() {
-	*x = LaunchProcessRequest{}
+func (x *LaunchJobRequest) Reset() {
+	*x = LaunchJobRequest{}
 	mi := &file_proto_messages_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *LaunchProcessRequest) String() string {
+func (x *LaunchJobRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*LaunchProcessRequest) ProtoMessage() {}
+func (*LaunchJobRequest) ProtoMessage() {}
 
-func (x *LaunchProcessRequest) ProtoReflect() protoreflect.Message {
+func (x *LaunchJobRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_messages_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -262,39 +262,39 @@ func (x *LaunchProcessRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use LaunchProcessRequest.ProtoReflect.Descriptor instead.
-func (*LaunchProcessRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use LaunchJobRequest.ProtoReflect.Descriptor instead.
+func (*LaunchJobRequest) Descriptor() ([]byte, []int) {
 	return file_proto_messages_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *LaunchProcessRequest) GetCommand() string {
+func (x *LaunchJobRequest) GetCommand() string {
 	if x != nil {
 		return x.Command
 	}
 	return ""
 }
 
-type LaunchProcessResponse struct {
+type LaunchJobResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	StreamEntry   *ProcessStreamEntry    `protobuf:"bytes,1,opt,name=stream_entry,json=streamEntry,proto3" json:"stream_entry,omitempty"`
+	StreamEntry   *JobStreamEntry        `protobuf:"bytes,1,opt,name=stream_entry,json=streamEntry,proto3" json:"stream_entry,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *LaunchProcessResponse) Reset() {
-	*x = LaunchProcessResponse{}
+func (x *LaunchJobResponse) Reset() {
+	*x = LaunchJobResponse{}
 	mi := &file_proto_messages_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *LaunchProcessResponse) String() string {
+func (x *LaunchJobResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*LaunchProcessResponse) ProtoMessage() {}
+func (*LaunchJobResponse) ProtoMessage() {}
 
-func (x *LaunchProcessResponse) ProtoReflect() protoreflect.Message {
+func (x *LaunchJobResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_messages_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -306,39 +306,39 @@ func (x *LaunchProcessResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use LaunchProcessResponse.ProtoReflect.Descriptor instead.
-func (*LaunchProcessResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use LaunchJobResponse.ProtoReflect.Descriptor instead.
+func (*LaunchJobResponse) Descriptor() ([]byte, []int) {
 	return file_proto_messages_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *LaunchProcessResponse) GetStreamEntry() *ProcessStreamEntry {
+func (x *LaunchJobResponse) GetStreamEntry() *JobStreamEntry {
 	if x != nil {
 		return x.StreamEntry
 	}
 	return nil
 }
 
-type AttachProcessRequest struct {
+type AttachJobRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *AttachProcessRequest) Reset() {
-	*x = AttachProcessRequest{}
+func (x *AttachJobRequest) Reset() {
+	*x = AttachJobRequest{}
 	mi := &file_proto_messages_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *AttachProcessRequest) String() string {
+func (x *AttachJobRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AttachProcessRequest) ProtoMessage() {}
+func (*AttachJobRequest) ProtoMessage() {}
 
-func (x *AttachProcessRequest) ProtoReflect() protoreflect.Message {
+func (x *AttachJobRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_messages_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -350,39 +350,39 @@ func (x *AttachProcessRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AttachProcessRequest.ProtoReflect.Descriptor instead.
-func (*AttachProcessRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use AttachJobRequest.ProtoReflect.Descriptor instead.
+func (*AttachJobRequest) Descriptor() ([]byte, []int) {
 	return file_proto_messages_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *AttachProcessRequest) GetId() string {
+func (x *AttachJobRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-type AttachProcessResponse struct {
+type AttachJobResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	StreamEntry   *ProcessStreamEntry    `protobuf:"bytes,1,opt,name=stream_entry,json=streamEntry,proto3" json:"stream_entry,omitempty"`
+	StreamEntry   *JobStreamEntry        `protobuf:"bytes,1,opt,name=stream_entry,json=streamEntry,proto3" json:"stream_entry,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *AttachProcessResponse) Reset() {
-	*x = AttachProcessResponse{}
+func (x *AttachJobResponse) Reset() {
+	*x = AttachJobResponse{}
 	mi := &file_proto_messages_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *AttachProcessResponse) String() string {
+func (x *AttachJobResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AttachProcessResponse) ProtoMessage() {}
+func (*AttachJobResponse) ProtoMessage() {}
 
-func (x *AttachProcessResponse) ProtoReflect() protoreflect.Message {
+func (x *AttachJobResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_messages_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -394,39 +394,39 @@ func (x *AttachProcessResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AttachProcessResponse.ProtoReflect.Descriptor instead.
-func (*AttachProcessResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use AttachJobResponse.ProtoReflect.Descriptor instead.
+func (*AttachJobResponse) Descriptor() ([]byte, []int) {
 	return file_proto_messages_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *AttachProcessResponse) GetStreamEntry() *ProcessStreamEntry {
+func (x *AttachJobResponse) GetStreamEntry() *JobStreamEntry {
 	if x != nil {
 		return x.StreamEntry
 	}
 	return nil
 }
 
-type TerminateProcessRequest struct {
+type TerminateJobRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *TerminateProcessRequest) Reset() {
-	*x = TerminateProcessRequest{}
+func (x *TerminateJobRequest) Reset() {
+	*x = TerminateJobRequest{}
 	mi := &file_proto_messages_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *TerminateProcessRequest) String() string {
+func (x *TerminateJobRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*TerminateProcessRequest) ProtoMessage() {}
+func (*TerminateJobRequest) ProtoMessage() {}
 
-func (x *TerminateProcessRequest) ProtoReflect() protoreflect.Message {
+func (x *TerminateJobRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_messages_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -438,38 +438,38 @@ func (x *TerminateProcessRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use TerminateProcessRequest.ProtoReflect.Descriptor instead.
-func (*TerminateProcessRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use TerminateJobRequest.ProtoReflect.Descriptor instead.
+func (*TerminateJobRequest) Descriptor() ([]byte, []int) {
 	return file_proto_messages_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *TerminateProcessRequest) GetId() string {
+func (x *TerminateJobRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-type TerminateProcessResponse struct {
+type TerminateJobResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *TerminateProcessResponse) Reset() {
-	*x = TerminateProcessResponse{}
+func (x *TerminateJobResponse) Reset() {
+	*x = TerminateJobResponse{}
 	mi := &file_proto_messages_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *TerminateProcessResponse) String() string {
+func (x *TerminateJobResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*TerminateProcessResponse) ProtoMessage() {}
+func (*TerminateJobResponse) ProtoMessage() {}
 
-func (x *TerminateProcessResponse) ProtoReflect() protoreflect.Message {
+func (x *TerminateJobResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_messages_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -481,8 +481,8 @@ func (x *TerminateProcessResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use TerminateProcessResponse.ProtoReflect.Descriptor instead.
-func (*TerminateProcessResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use TerminateJobResponse.ProtoReflect.Descriptor instead.
+func (*TerminateJobResponse) Descriptor() ([]byte, []int) {
 	return file_proto_messages_proto_rawDescGZIP(), []int{9}
 }
 
@@ -492,53 +492,50 @@ var file_proto_messages_proto_rawDesc = string([]byte{
 	0x0a, 0x14, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x73,
 	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x05, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x1f, 0x67,
 	0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2f, 0x74,
-	0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x9c,
-	0x01, 0x0a, 0x0c, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12,
-	0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x12,
-	0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e,
-	0x61, 0x6d, 0x65, 0x12, 0x35, 0x0a, 0x08, 0x73, 0x74, 0x61, 0x72, 0x74, 0x5f, 0x74, 0x73, 0x18,
-	0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d,
-	0x70, 0x52, 0x07, 0x73, 0x74, 0x61, 0x72, 0x74, 0x54, 0x73, 0x12, 0x31, 0x0a, 0x06, 0x65, 0x6e,
-	0x64, 0x5f, 0x74, 0x73, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f,
-	0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d,
-	0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x52, 0x05, 0x65, 0x6e, 0x64, 0x54, 0x73, 0x22, 0x60, 0x0a,
-	0x12, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x45, 0x6e,
-	0x74, 0x72, 0x79, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52,
-	0x02, 0x69, 0x64, 0x12, 0x1d, 0x0a, 0x0a, 0x73, 0x74, 0x64, 0x5f, 0x6f, 0x75, 0x74, 0x70, 0x75,
-	0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x09, 0x73, 0x74, 0x64, 0x4f, 0x75, 0x74, 0x70,
-	0x75, 0x74, 0x12, 0x1b, 0x0a, 0x09, 0x73, 0x74, 0x64, 0x5f, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x18,
-	0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x08, 0x73, 0x74, 0x64, 0x45, 0x72, 0x72, 0x6f, 0x72, 0x22,
-	0x16, 0x0a, 0x14, 0x4c, 0x69, 0x73, 0x74, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x65, 0x73,
-	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x46, 0x0a, 0x15, 0x4c, 0x69, 0x73, 0x74, 0x50,
-	0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x12, 0x2d, 0x0a, 0x07, 0x65, 0x6e, 0x74, 0x72, 0x69, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28,
-	0x0b, 0x32, 0x13, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73,
-	0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x07, 0x65, 0x6e, 0x74, 0x72, 0x69, 0x65, 0x73, 0x22,
-	0x30, 0x0a, 0x14, 0x4c, 0x61, 0x75, 0x6e, 0x63, 0x68, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73,
-	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x18, 0x0a, 0x07, 0x63, 0x6f, 0x6d, 0x6d, 0x61,
-	0x6e, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x63, 0x6f, 0x6d, 0x6d, 0x61, 0x6e,
-	0x64, 0x22, 0x55, 0x0a, 0x15, 0x4c, 0x61, 0x75, 0x6e, 0x63, 0x68, 0x50, 0x72, 0x6f, 0x63, 0x65,
-	0x73, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x3c, 0x0a, 0x0c, 0x73, 0x74,
-	0x72, 0x65, 0x61, 0x6d, 0x5f, 0x65, 0x6e, 0x74, 0x72, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b,
-	0x32, 0x19, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73,
+	0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x9e,
+	0x01, 0x0a, 0x08, 0x4a, 0x6f, 0x62, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x0e, 0x0a, 0x02, 0x69,
+	0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x12, 0x18, 0x0a, 0x07, 0x63,
+	0x6f, 0x6d, 0x6d, 0x61, 0x6e, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x63, 0x6f,
+	0x6d, 0x6d, 0x61, 0x6e, 0x64, 0x12, 0x35, 0x0a, 0x08, 0x73, 0x74, 0x61, 0x72, 0x74, 0x5f, 0x74,
+	0x73, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65,
+	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74,
+	0x61, 0x6d, 0x70, 0x52, 0x07, 0x73, 0x74, 0x61, 0x72, 0x74, 0x54, 0x73, 0x12, 0x31, 0x0a, 0x06,
+	0x65, 0x6e, 0x64, 0x5f, 0x74, 0x73, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67,
+	0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54,
+	0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x52, 0x05, 0x65, 0x6e, 0x64, 0x54, 0x73, 0x22,
+	0x5c, 0x0a, 0x0e, 0x4a, 0x6f, 0x62, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x45, 0x6e, 0x74, 0x72,
+	0x79, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69,
+	0x64, 0x12, 0x1d, 0x0a, 0x0a, 0x73, 0x74, 0x64, 0x5f, 0x6f, 0x75, 0x74, 0x70, 0x75, 0x74, 0x18,
+	0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x09, 0x73, 0x74, 0x64, 0x4f, 0x75, 0x74, 0x70, 0x75, 0x74,
+	0x12, 0x1b, 0x0a, 0x09, 0x73, 0x74, 0x64, 0x5f, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x18, 0x03, 0x20,
+	0x01, 0x28, 0x0c, 0x52, 0x08, 0x73, 0x74, 0x64, 0x45, 0x72, 0x72, 0x6f, 0x72, 0x22, 0x12, 0x0a,
+	0x10, 0x4c, 0x69, 0x73, 0x74, 0x4a, 0x6f, 0x62, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x22, 0x38, 0x0a, 0x11, 0x4c, 0x69, 0x73, 0x74, 0x4a, 0x6f, 0x62, 0x65, 0x73, 0x52, 0x65,
+	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x23, 0x0a, 0x04, 0x6a, 0x6f, 0x62, 0x73, 0x18, 0x01,
+	0x20, 0x03, 0x28, 0x0b, 0x32, 0x0f, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x4a, 0x6f, 0x62,
+	0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x04, 0x6a, 0x6f, 0x62, 0x73, 0x22, 0x2c, 0x0a, 0x10, 0x4c,
+	0x61, 0x75, 0x6e, 0x63, 0x68, 0x4a, 0x6f, 0x62, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12,
+	0x18, 0x0a, 0x07, 0x63, 0x6f, 0x6d, 0x6d, 0x61, 0x6e, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x07, 0x63, 0x6f, 0x6d, 0x6d, 0x61, 0x6e, 0x64, 0x22, 0x4d, 0x0a, 0x11, 0x4c, 0x61, 0x75,
+	0x6e, 0x63, 0x68, 0x4a, 0x6f, 0x62, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x38,
+	0x0a, 0x0c, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x5f, 0x65, 0x6e, 0x74, 0x72, 0x79, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x4a, 0x6f, 0x62,
 	0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x0b, 0x73, 0x74, 0x72,
-	0x65, 0x61, 0x6d, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x22, 0x26, 0x0a, 0x14, 0x41, 0x74, 0x74, 0x61,
-	0x63, 0x68, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64,
-	0x22, 0x55, 0x0a, 0x15, 0x41, 0x74, 0x74, 0x61, 0x63, 0x68, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73,
-	0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x3c, 0x0a, 0x0c, 0x73, 0x74, 0x72,
-	0x65, 0x61, 0x6d, 0x5f, 0x65, 0x6e, 0x74, 0x72, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32,
-	0x19, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x53,
-	0x74, 0x72, 0x65, 0x61, 0x6d, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x0b, 0x73, 0x74, 0x72, 0x65,
-	0x61, 0x6d, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x22, 0x29, 0x0a, 0x17, 0x54, 0x65, 0x72, 0x6d, 0x69,
-	0x6e, 0x61, 0x74, 0x65, 0x50, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x65, 0x61, 0x6d, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x22, 0x22, 0x0a, 0x10, 0x41, 0x74, 0x74, 0x61,
+	0x63, 0x68, 0x4a, 0x6f, 0x62, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x0e, 0x0a, 0x02,
+	0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x22, 0x4d, 0x0a, 0x11,
+	0x41, 0x74, 0x74, 0x61, 0x63, 0x68, 0x4a, 0x6f, 0x62, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x12, 0x38, 0x0a, 0x0c, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x5f, 0x65, 0x6e, 0x74, 0x72,
+	0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e,
+	0x4a, 0x6f, 0x62, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x0b,
+	0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x22, 0x25, 0x0a, 0x13, 0x54,
+	0x65, 0x72, 0x6d, 0x69, 0x6e, 0x61, 0x74, 0x65, 0x4a, 0x6f, 0x62, 0x52, 0x65, 0x71, 0x75, 0x65,
 	0x73, 0x74, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02,
-	0x69, 0x64, 0x22, 0x1a, 0x0a, 0x18, 0x54, 0x65, 0x72, 0x6d, 0x69, 0x6e, 0x61, 0x74, 0x65, 0x50,
-	0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x42, 0x1e,
-	0x5a, 0x1c, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x74, 0x72, 0x6f,
-	0x70, 0x6c, 0x65, 0x74, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x06,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x69, 0x64, 0x22, 0x16, 0x0a, 0x14, 0x54, 0x65, 0x72, 0x6d, 0x69, 0x6e, 0x61, 0x74, 0x65, 0x4a,
+	0x6f, 0x62, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x42, 0x1e, 0x5a, 0x1c, 0x67, 0x69,
+	0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x74, 0x72, 0x6f, 0x70, 0x6c, 0x65, 0x74,
+	0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x33,
 })
 
 var (
@@ -555,24 +552,24 @@ func file_proto_messages_proto_rawDescGZIP() []byte {
 
 var file_proto_messages_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_proto_messages_proto_goTypes = []any{
-	(*ProcessEntry)(nil),             // 0: proto.ProcessEntry
-	(*ProcessStreamEntry)(nil),       // 1: proto.ProcessStreamEntry
-	(*ListProcessesRequest)(nil),     // 2: proto.ListProcessesRequest
-	(*ListProcessesResponse)(nil),    // 3: proto.ListProcessesResponse
-	(*LaunchProcessRequest)(nil),     // 4: proto.LaunchProcessRequest
-	(*LaunchProcessResponse)(nil),    // 5: proto.LaunchProcessResponse
-	(*AttachProcessRequest)(nil),     // 6: proto.AttachProcessRequest
-	(*AttachProcessResponse)(nil),    // 7: proto.AttachProcessResponse
-	(*TerminateProcessRequest)(nil),  // 8: proto.TerminateProcessRequest
-	(*TerminateProcessResponse)(nil), // 9: proto.TerminateProcessResponse
-	(*timestamppb.Timestamp)(nil),    // 10: google.protobuf.Timestamp
+	(*JobEntry)(nil),              // 0: proto.JobEntry
+	(*JobStreamEntry)(nil),        // 1: proto.JobStreamEntry
+	(*ListJobesRequest)(nil),      // 2: proto.ListJobesRequest
+	(*ListJobesResponse)(nil),     // 3: proto.ListJobesResponse
+	(*LaunchJobRequest)(nil),      // 4: proto.LaunchJobRequest
+	(*LaunchJobResponse)(nil),     // 5: proto.LaunchJobResponse
+	(*AttachJobRequest)(nil),      // 6: proto.AttachJobRequest
+	(*AttachJobResponse)(nil),     // 7: proto.AttachJobResponse
+	(*TerminateJobRequest)(nil),   // 8: proto.TerminateJobRequest
+	(*TerminateJobResponse)(nil),  // 9: proto.TerminateJobResponse
+	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
 }
 var file_proto_messages_proto_depIdxs = []int32{
-	10, // 0: proto.ProcessEntry.start_ts:type_name -> google.protobuf.Timestamp
-	10, // 1: proto.ProcessEntry.end_ts:type_name -> google.protobuf.Timestamp
-	0,  // 2: proto.ListProcessesResponse.entries:type_name -> proto.ProcessEntry
-	1,  // 3: proto.LaunchProcessResponse.stream_entry:type_name -> proto.ProcessStreamEntry
-	1,  // 4: proto.AttachProcessResponse.stream_entry:type_name -> proto.ProcessStreamEntry
+	10, // 0: proto.JobEntry.start_ts:type_name -> google.protobuf.Timestamp
+	10, // 1: proto.JobEntry.end_ts:type_name -> google.protobuf.Timestamp
+	0,  // 2: proto.ListJobesResponse.jobs:type_name -> proto.JobEntry
+	1,  // 3: proto.LaunchJobResponse.stream_entry:type_name -> proto.JobStreamEntry
+	1,  // 4: proto.AttachJobResponse.stream_entry:type_name -> proto.JobStreamEntry
 	5,  // [5:5] is the sub-list for method output_type
 	5,  // [5:5] is the sub-list for method input_type
 	5,  // [5:5] is the sub-list for extension type_name

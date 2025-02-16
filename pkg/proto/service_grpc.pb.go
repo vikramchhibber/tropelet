@@ -19,47 +19,47 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Server_ListProcesses_FullMethodName    = "/proto.Server/ListProcesses"
-	Server_LaunchProcess_FullMethodName    = "/proto.Server/LaunchProcess"
-	Server_AttachProcess_FullMethodName    = "/proto.Server/AttachProcess"
-	Server_TerminateProcess_FullMethodName = "/proto.Server/TerminateProcess"
+	JobService_ListJobes_FullMethodName    = "/proto.JobService/ListJobes"
+	JobService_LaunchJob_FullMethodName    = "/proto.JobService/LaunchJob"
+	JobService_AttachJob_FullMethodName    = "/proto.JobService/AttachJob"
+	JobService_TerminateJob_FullMethodName = "/proto.JobService/TerminateJob"
 )
 
-// ServerClient is the client API for Server service.
+// JobServiceClient is the client API for JobService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type ServerClient interface {
-	ListProcesses(ctx context.Context, in *ListProcessesRequest, opts ...grpc.CallOption) (*ListProcessesResponse, error)
-	LaunchProcess(ctx context.Context, in *LaunchProcessRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[LaunchProcessResponse], error)
-	AttachProcess(ctx context.Context, in *AttachProcessRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[AttachProcessResponse], error)
-	TerminateProcess(ctx context.Context, in *TerminateProcessRequest, opts ...grpc.CallOption) (*TerminateProcessResponse, error)
+type JobServiceClient interface {
+	ListJobes(ctx context.Context, in *ListJobesRequest, opts ...grpc.CallOption) (*ListJobesResponse, error)
+	LaunchJob(ctx context.Context, in *LaunchJobRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[LaunchJobResponse], error)
+	AttachJob(ctx context.Context, in *AttachJobRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[AttachJobResponse], error)
+	TerminateJob(ctx context.Context, in *TerminateJobRequest, opts ...grpc.CallOption) (*TerminateJobResponse, error)
 }
 
-type serverClient struct {
+type jobServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewServerClient(cc grpc.ClientConnInterface) ServerClient {
-	return &serverClient{cc}
+func NewJobServiceClient(cc grpc.ClientConnInterface) JobServiceClient {
+	return &jobServiceClient{cc}
 }
 
-func (c *serverClient) ListProcesses(ctx context.Context, in *ListProcessesRequest, opts ...grpc.CallOption) (*ListProcessesResponse, error) {
+func (c *jobServiceClient) ListJobes(ctx context.Context, in *ListJobesRequest, opts ...grpc.CallOption) (*ListJobesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListProcessesResponse)
-	err := c.cc.Invoke(ctx, Server_ListProcesses_FullMethodName, in, out, cOpts...)
+	out := new(ListJobesResponse)
+	err := c.cc.Invoke(ctx, JobService_ListJobes_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *serverClient) LaunchProcess(ctx context.Context, in *LaunchProcessRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[LaunchProcessResponse], error) {
+func (c *jobServiceClient) LaunchJob(ctx context.Context, in *LaunchJobRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[LaunchJobResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &Server_ServiceDesc.Streams[0], Server_LaunchProcess_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &JobService_ServiceDesc.Streams[0], JobService_LaunchJob_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[LaunchProcessRequest, LaunchProcessResponse]{ClientStream: stream}
+	x := &grpc.GenericClientStream[LaunchJobRequest, LaunchJobResponse]{ClientStream: stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -70,15 +70,15 @@ func (c *serverClient) LaunchProcess(ctx context.Context, in *LaunchProcessReque
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type Server_LaunchProcessClient = grpc.ServerStreamingClient[LaunchProcessResponse]
+type JobService_LaunchJobClient = grpc.ServerStreamingClient[LaunchJobResponse]
 
-func (c *serverClient) AttachProcess(ctx context.Context, in *AttachProcessRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[AttachProcessResponse], error) {
+func (c *jobServiceClient) AttachJob(ctx context.Context, in *AttachJobRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[AttachJobResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &Server_ServiceDesc.Streams[1], Server_AttachProcess_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &JobService_ServiceDesc.Streams[1], JobService_AttachJob_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[AttachProcessRequest, AttachProcessResponse]{ClientStream: stream}
+	x := &grpc.GenericClientStream[AttachJobRequest, AttachJobResponse]{ClientStream: stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -89,152 +89,152 @@ func (c *serverClient) AttachProcess(ctx context.Context, in *AttachProcessReque
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type Server_AttachProcessClient = grpc.ServerStreamingClient[AttachProcessResponse]
+type JobService_AttachJobClient = grpc.ServerStreamingClient[AttachJobResponse]
 
-func (c *serverClient) TerminateProcess(ctx context.Context, in *TerminateProcessRequest, opts ...grpc.CallOption) (*TerminateProcessResponse, error) {
+func (c *jobServiceClient) TerminateJob(ctx context.Context, in *TerminateJobRequest, opts ...grpc.CallOption) (*TerminateJobResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(TerminateProcessResponse)
-	err := c.cc.Invoke(ctx, Server_TerminateProcess_FullMethodName, in, out, cOpts...)
+	out := new(TerminateJobResponse)
+	err := c.cc.Invoke(ctx, JobService_TerminateJob_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// ServerServer is the server API for Server service.
-// All implementations must embed UnimplementedServerServer
+// JobServiceServer is the server API for JobService service.
+// All implementations must embed UnimplementedJobServiceServer
 // for forward compatibility.
-type ServerServer interface {
-	ListProcesses(context.Context, *ListProcessesRequest) (*ListProcessesResponse, error)
-	LaunchProcess(*LaunchProcessRequest, grpc.ServerStreamingServer[LaunchProcessResponse]) error
-	AttachProcess(*AttachProcessRequest, grpc.ServerStreamingServer[AttachProcessResponse]) error
-	TerminateProcess(context.Context, *TerminateProcessRequest) (*TerminateProcessResponse, error)
-	mustEmbedUnimplementedServerServer()
+type JobServiceServer interface {
+	ListJobes(context.Context, *ListJobesRequest) (*ListJobesResponse, error)
+	LaunchJob(*LaunchJobRequest, grpc.ServerStreamingServer[LaunchJobResponse]) error
+	AttachJob(*AttachJobRequest, grpc.ServerStreamingServer[AttachJobResponse]) error
+	TerminateJob(context.Context, *TerminateJobRequest) (*TerminateJobResponse, error)
+	mustEmbedUnimplementedJobServiceServer()
 }
 
-// UnimplementedServerServer must be embedded to have
+// UnimplementedJobServiceServer must be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedServerServer struct{}
+type UnimplementedJobServiceServer struct{}
 
-func (UnimplementedServerServer) ListProcesses(context.Context, *ListProcessesRequest) (*ListProcessesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListProcesses not implemented")
+func (UnimplementedJobServiceServer) ListJobes(context.Context, *ListJobesRequest) (*ListJobesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListJobes not implemented")
 }
-func (UnimplementedServerServer) LaunchProcess(*LaunchProcessRequest, grpc.ServerStreamingServer[LaunchProcessResponse]) error {
-	return status.Errorf(codes.Unimplemented, "method LaunchProcess not implemented")
+func (UnimplementedJobServiceServer) LaunchJob(*LaunchJobRequest, grpc.ServerStreamingServer[LaunchJobResponse]) error {
+	return status.Errorf(codes.Unimplemented, "method LaunchJob not implemented")
 }
-func (UnimplementedServerServer) AttachProcess(*AttachProcessRequest, grpc.ServerStreamingServer[AttachProcessResponse]) error {
-	return status.Errorf(codes.Unimplemented, "method AttachProcess not implemented")
+func (UnimplementedJobServiceServer) AttachJob(*AttachJobRequest, grpc.ServerStreamingServer[AttachJobResponse]) error {
+	return status.Errorf(codes.Unimplemented, "method AttachJob not implemented")
 }
-func (UnimplementedServerServer) TerminateProcess(context.Context, *TerminateProcessRequest) (*TerminateProcessResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method TerminateProcess not implemented")
+func (UnimplementedJobServiceServer) TerminateJob(context.Context, *TerminateJobRequest) (*TerminateJobResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TerminateJob not implemented")
 }
-func (UnimplementedServerServer) mustEmbedUnimplementedServerServer() {}
-func (UnimplementedServerServer) testEmbeddedByValue()                {}
+func (UnimplementedJobServiceServer) mustEmbedUnimplementedJobServiceServer() {}
+func (UnimplementedJobServiceServer) testEmbeddedByValue()                    {}
 
-// UnsafeServerServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to ServerServer will
+// UnsafeJobServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to JobServiceServer will
 // result in compilation errors.
-type UnsafeServerServer interface {
-	mustEmbedUnimplementedServerServer()
+type UnsafeJobServiceServer interface {
+	mustEmbedUnimplementedJobServiceServer()
 }
 
-func RegisterServerServer(s grpc.ServiceRegistrar, srv ServerServer) {
-	// If the following call pancis, it indicates UnimplementedServerServer was
+func RegisterJobServiceServer(s grpc.ServiceRegistrar, srv JobServiceServer) {
+	// If the following call pancis, it indicates UnimplementedJobServiceServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&Server_ServiceDesc, srv)
+	s.RegisterService(&JobService_ServiceDesc, srv)
 }
 
-func _Server_ListProcesses_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListProcessesRequest)
+func _JobService_ListJobes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListJobesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ServerServer).ListProcesses(ctx, in)
+		return srv.(JobServiceServer).ListJobes(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Server_ListProcesses_FullMethodName,
+		FullMethod: JobService_ListJobes_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServerServer).ListProcesses(ctx, req.(*ListProcessesRequest))
+		return srv.(JobServiceServer).ListJobes(ctx, req.(*ListJobesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Server_LaunchProcess_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(LaunchProcessRequest)
+func _JobService_LaunchJob_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(LaunchJobRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(ServerServer).LaunchProcess(m, &grpc.GenericServerStream[LaunchProcessRequest, LaunchProcessResponse]{ServerStream: stream})
+	return srv.(JobServiceServer).LaunchJob(m, &grpc.GenericServerStream[LaunchJobRequest, LaunchJobResponse]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type Server_LaunchProcessServer = grpc.ServerStreamingServer[LaunchProcessResponse]
+type JobService_LaunchJobServer = grpc.ServerStreamingServer[LaunchJobResponse]
 
-func _Server_AttachProcess_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(AttachProcessRequest)
+func _JobService_AttachJob_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(AttachJobRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(ServerServer).AttachProcess(m, &grpc.GenericServerStream[AttachProcessRequest, AttachProcessResponse]{ServerStream: stream})
+	return srv.(JobServiceServer).AttachJob(m, &grpc.GenericServerStream[AttachJobRequest, AttachJobResponse]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type Server_AttachProcessServer = grpc.ServerStreamingServer[AttachProcessResponse]
+type JobService_AttachJobServer = grpc.ServerStreamingServer[AttachJobResponse]
 
-func _Server_TerminateProcess_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TerminateProcessRequest)
+func _JobService_TerminateJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TerminateJobRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ServerServer).TerminateProcess(ctx, in)
+		return srv.(JobServiceServer).TerminateJob(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Server_TerminateProcess_FullMethodName,
+		FullMethod: JobService_TerminateJob_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServerServer).TerminateProcess(ctx, req.(*TerminateProcessRequest))
+		return srv.(JobServiceServer).TerminateJob(ctx, req.(*TerminateJobRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// Server_ServiceDesc is the grpc.ServiceDesc for Server service.
+// JobService_ServiceDesc is the grpc.ServiceDesc for JobService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var Server_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "proto.Server",
-	HandlerType: (*ServerServer)(nil),
+var JobService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "proto.JobService",
+	HandlerType: (*JobServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ListProcesses",
-			Handler:    _Server_ListProcesses_Handler,
+			MethodName: "ListJobes",
+			Handler:    _JobService_ListJobes_Handler,
 		},
 		{
-			MethodName: "TerminateProcess",
-			Handler:    _Server_TerminateProcess_Handler,
+			MethodName: "TerminateJob",
+			Handler:    _JobService_TerminateJob_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "LaunchProcess",
-			Handler:       _Server_LaunchProcess_Handler,
+			StreamName:    "LaunchJob",
+			Handler:       _JobService_LaunchJob_Handler,
 			ServerStreams: true,
 		},
 		{
-			StreamName:    "AttachProcess",
-			Handler:       _Server_AttachProcess_Handler,
+			StreamName:    "AttachJob",
+			Handler:       _JobService_AttachJob_Handler,
 			ServerStreams: true,
 		},
 	},

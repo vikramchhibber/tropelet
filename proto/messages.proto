@@ -6,45 +6,45 @@ option go_package = "github.com/troplet/pkg/proto";
 
 import "google/protobuf/timestamp.proto";
 
-message ProcessEntry {
+message JobEntry {
   string id = 1;
-  string name = 2;
+  string command = 2;
   google.protobuf.Timestamp start_ts = 3;
   google.protobuf.Timestamp end_ts = 4;
 }
 
-message ProcessStreamEntry {
+message JobStreamEntry {
   string id = 1;
   bytes std_output = 2;
   bytes std_error = 3;
 }
 
-message ListProcessesRequest {
+message ListJobesRequest {
 }
 
-message ListProcessesResponse {
-  repeated ProcessEntry entries = 1;
+message ListJobesResponse {
+  repeated JobEntry jobs = 1;
 }
 
-message LaunchProcessRequest {
+message LaunchJobRequest {
   string command = 1;
 }
 
-message LaunchProcessResponse {
-  ProcessStreamEntry stream_entry = 1;
+message LaunchJobResponse {
+  JobStreamEntry stream_entry = 1;
 }
 
-message AttachProcessRequest {
+message AttachJobRequest {
   string id = 1;
 }
 
-message AttachProcessResponse {
-  ProcessStreamEntry stream_entry = 1;
+message AttachJobResponse {
+  JobStreamEntry stream_entry = 1;
 }
 
-message TerminateProcessRequest {
+message TerminateJobRequest {
   string id = 1;
 }
 
-message TerminateProcessResponse {
+message TerminateJobResponse {
 }
