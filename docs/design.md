@@ -1,3 +1,11 @@
+# Summary
+These notes cover brief design and scope of a job worker service that can run arbitrary Linux process initiated by are remote client.
+Following three artifacts are expected to be delivered as part of this solution:
+1. Reusable library implementing the functionality for working with jobs.
+2. gRPC server the wraps the functionality of the library.
+3. Command line interface utility that communicates with the gRPC server.
+
+
 # Security
 ## Authentication
 ### mTLS
@@ -9,7 +17,7 @@
 
 >An ideal implementation introduces intermediate CA level for signing client and server certificates that minimizes the risk of compromising root CA if intermediate CA is compromised. We will not introduce intermediate CA level for this solution.
 
-### Choice of cipher suit and TLS version
+### Choice of cipher suits and TLS version
 1. Since both the client and server are under our control and the server does not need to interoperate with multiple types of clients, we will use only TLS 1.3 version. This version of TLS includes strongest cipher suites and key exchange algorithms supporting perfect forward secrecy (**ECDHE**). We will support EC curves **P384** and **P521**.
 2. Since the underlying TLS go library does not support application to configure the bulk encryption algorithms, we will rely on the algorithm chosen by the library. This should ideally be **AES-GCM** 128 or 256.
 
@@ -23,10 +31,10 @@
 5. Including the **Issuer** in the identifier ensures that if the issuing authority changes in the future, the server can still uniquely identify certificates/clients, even in the event of a serial number conflict.
 
 ## Authorization
-No authorization policy will be defined for connecting clients in this solution. Client will use server’s privileges to execute jobs.
+We will restrict the use of commands that pose a risk to data integrity or system security. Some of the commands that we include are **rm**, **chmod**, **chown** and **sudo**.
 
 
-# Server Design
+# Server
 1. The server will implement a gRPC service and will support multiple concurrent client connections. These connections may originate from clients with the same identity, such as when multiple CLI clients are started with same client certificate. Thus, the server will have ability to fork the output of running job to multiple gRPC client connections.
 2. The server internally will have a map associating **SHA-1** client identity with multiple incoming gRPC connection streams and multiple running job states.
 3. If job is running, the server will continue to maintain state associated with client identity even after all incoming client connections have terminated under that identity, since the solution will support CLI clients reattaching to running jobs.
@@ -34,15 +42,16 @@ No authorization policy will be defined for connecting clients in this solution.
 5. The server will support graceful shutdown terminating running jobs and client connections if **SIGINT**, **SIGTERM** signals are received.
 6. The server will not cache the output of running jobs when no client is attached. Consequently, if a client loses its connection, it will not be able to retrieve any previously generated output from the job.
 7. The server will disconnect client connections once the associated job terminates.
-8. Since the expectation of the server solution is to create c-groups, network namespaces and mounts, the server needs to run as superuser.
+8. Since the expectation of the server solution is to create c-groups, network namespaces and mounts, the server needs to run as superuser/privileged process. Many of the operations like c-group v2, cannot be even performed by using **capabilities**.
 
 
 # Exec library
-1.	A generalized **exec** library will be implemented that manages the lifecycle of job request.
+1.	A generalized **exec** library will be implemented that manages the lifecycle of job requested.
 2.	This library will be integrated as part of server and will not include any dependency of server or client solution.
 3.	The library will encapsulate the complexities of Linux c-groups, network namespaces, and filesystem management, providing a set of intuitive, high-level APIs for applications.
 4.	The library will be stateful, as it needs to manage job lifecycle and will perform all the necessary cleanup once the job terminates.
 5.	The library will use c-groups v2, assuming that the target Linux kernel is recent enough to support it.
+
 
 
 # CLI Client
