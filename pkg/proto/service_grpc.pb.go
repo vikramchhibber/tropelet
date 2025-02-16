@@ -28,10 +28,16 @@ const (
 // JobServiceClient is the client API for JobService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// gRPC service definition for job execution service
 type JobServiceClient interface {
+	// List all the running jobs for connecting client.
 	ListJobes(ctx context.Context, in *ListJobesRequest, opts ...grpc.CallOption) (*ListJobesResponse, error)
+	// Request a new job launch on the server side.
 	LaunchJob(ctx context.Context, in *LaunchJobRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[LaunchJobResponse], error)
+	// Attaches to a running job and gets its stderr, stdout streams.
 	AttachJob(ctx context.Context, in *AttachJobRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[AttachJobResponse], error)
+	// Request termination of running job.
 	TerminateJob(ctx context.Context, in *TerminateJobRequest, opts ...grpc.CallOption) (*TerminateJobResponse, error)
 }
 
@@ -104,10 +110,16 @@ func (c *jobServiceClient) TerminateJob(ctx context.Context, in *TerminateJobReq
 // JobServiceServer is the server API for JobService service.
 // All implementations must embed UnimplementedJobServiceServer
 // for forward compatibility.
+//
+// gRPC service definition for job execution service
 type JobServiceServer interface {
+	// List all the running jobs for connecting client.
 	ListJobes(context.Context, *ListJobesRequest) (*ListJobesResponse, error)
+	// Request a new job launch on the server side.
 	LaunchJob(*LaunchJobRequest, grpc.ServerStreamingServer[LaunchJobResponse]) error
+	// Attaches to a running job and gets its stderr, stdout streams.
 	AttachJob(*AttachJobRequest, grpc.ServerStreamingServer[AttachJobResponse]) error
+	// Request termination of running job.
 	TerminateJob(context.Context, *TerminateJobRequest) (*TerminateJobResponse, error)
 	mustEmbedUnimplementedJobServiceServer()
 }
