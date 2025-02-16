@@ -1,9 +1,9 @@
-# Summary
-These notes cover brief design and scope of a job worker service that can run arbitrary Linux process initiated by are remote client.
-Following three artifacts are expected to be delivered as part of this solution:
-1. Reusable library implementing the functionality for working with jobs.
-2. gRPC server the wraps the functionality of the library.
-3. Command line interface utility that communicates with the gRPC server.
+# Introduction
+These notes cover brief design and scope of a job execution service that can run arbitrary Linux commands initiated by authorized remote clients.
+This prototype consists of three components:
+1.	A library providing APIs to launch, terminate, and check the status of Linux processes. It will isolate each job in its own network namespace with separate PID and filesystem, and it uses cgroups to limit CPU, memory, and I/O usage.
+2.	The gRPC service leveraging this library to offer server-side calls for launching, terminating, and querying jobs. The server will authenticate the connecting clients using certificates.
+3.	The command-line interface utility connecting the gRPC service to interact with the user and making client side gRPC calls.
 
 
 # Security
@@ -42,7 +42,7 @@ We will restrict the use of commands that pose a risk to data integrity or syste
 5. The server will support graceful shutdown terminating running jobs and client connections if **SIGINT**, **SIGTERM** signals are received.
 6. The server will not cache the output of running jobs when no client is attached. Consequently, if a client loses its connection, it will not be able to retrieve any previously generated output from the job.
 7. The server will disconnect client connections once the associated job terminates.
-8. Since the expectation of the server solution is to create c-groups, network namespaces and mounts, the server needs to run as superuser/privileged process. Many of the operations like c-group v2, cannot be even performed by using **capabilities**.
+8. Since the expectation of the server solution is to create c-groups, network namespaces and mounts, the server needs to run as superuser/privileged process. Many of the operations like c-group, change root, cannot be performed just by using **capabilities**.
 
 
 # Exec library
@@ -51,8 +51,8 @@ We will restrict the use of commands that pose a risk to data integrity or syste
 3.	The library will encapsulate the complexities of Linux c-groups, network namespaces, and filesystem management, providing a set of intuitive, high-level APIs for applications.
 4.	The library will be stateful, as it needs to manage job lifecycle and will perform all the necessary cleanup once the job terminates.
 5.	The library will use c-groups v2, assuming that the target Linux kernel is recent enough to support it.
-
-
+6.	The library will provide file system isolation my mounting necessary host OS directories and changing root of the job.
+7.	The library will isolate network traffic by running each job in its own network namespace, creating a single host bridge that connects multiple namespaces. It will support only one subnet for the bridge and virtual Ethernet interfaces.
 
 # CLI Client
 1. Connect to the remote server and get details on running jobs for this client
@@ -79,3 +79,5 @@ tctl terminate ba7371d5-a848-4b5d-b90a-7479342051a4
 
 
 # gRPC
+
+
