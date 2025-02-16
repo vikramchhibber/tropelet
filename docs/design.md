@@ -23,7 +23,8 @@
 5. Including the **Issuer** in the identifier ensures that if the issuing authority changes in the future, the server can still uniquely identify certificates/clients, even in the event of a serial number conflict.
 
 ## Authorization
-No authorization policy will be defined for connecting clients in this solution.
+No authorization policy will be defined for connecting clients in this solution. Client will use server’s privileges to execute jobs.
+
 
 # Server Design
 1. The server will implement a gRPC service and will support multiple concurrent client connections. These connections may originate from clients with the same identity, such as when multiple CLI clients are started with same client certificate. Thus, the server will have ability to fork the output of running job to multiple gRPC client connections.
@@ -33,7 +34,39 @@ No authorization policy will be defined for connecting clients in this solution.
 5. The server will support graceful shutdown terminating running jobs and client connections if **SIGINT**, **SIGTERM** signals are received.
 6. The server will not cache the output of running jobs when no client is attached. Consequently, if a client loses its connection, it will not be able to retrieve any previously generated output from the job.
 7. The server will disconnect client connections once the associated job terminates.
+8. Since the expectation of the server solution is to create c-groups, network namespaces and mounts, the server needs to run as superuser.
+
+
+# Exec library
+1.	A generalized **exec** library will be implemented that manages the lifecycle of job request.
+2.	This library will be integrated as part of server and will not include any dependency of server or client solution.
+3.	The library will encapsulate the complexities of Linux c-groups, network namespaces, and filesystem management, providing a set of intuitive, high-level APIs for applications.
+4.	The library will be stateful, as it needs to manage job lifecycle and will perform all the necessary cleanup once the job terminates.
+5.	The library will use c-groups v2, assuming that the target Linux kernel is recent enough to support it.
+
+
+# CLI Client
+1. Connect to the remote server and get details on running jobs for this client
+```
+tctl
+# OR
+tctl list
+# Proposed output
+ba7371d5-a848-4b5d-b90a-7479342051a4 find / -name "foobar*go"
+c19cd05a-42dd-40a0-a0e6-b56c0ffd98ed sleep 10
+```
+2. Execute remote job.
+```
+tctl exec journalctl -f
+```
+3. Attach to a remote running job to get the output.
+```
+tctl attach ba7371d5-a848-4b5d-b90a-7479342051a4
+```
+4. Request termination of remote running job.
+```
+tctl terminate ba7371d5-a848-4b5d-b90a-7479342051a4
+```
 
 
 # gRPC
-# CLI Client
