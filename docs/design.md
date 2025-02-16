@@ -5,7 +5,6 @@ This prototype consists of three components:
 2.	The gRPC service leveraging this library to offer server-side calls for launching, terminating, and querying jobs. The server will authenticate the connecting clients using certificates.
 3.	The command-line interface utility connecting the gRPC service to interact with the user and making client side gRPC calls.
 
-
 # Security
 ## Authentication
 ### mTLS
@@ -79,5 +78,4 @@ tctl terminate ba7371d5-a848-4b5d-b90a-7479342051a4
 
 
 # gRPC
-
-
+[The service proto definition] (https://github.com/vikramchhibber/tropelet/tree/design_doc/proto)
