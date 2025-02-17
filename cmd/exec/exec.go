@@ -33,7 +33,7 @@ func main() {
 	go readFunc(stderrChan, true)
 	cmd, err := exec.NewCommand("/usr/bin/bash", append([]string{"-c"}, os.Args[1:]...),
 		exec.WithStdoutChan(stdoutChan), exec.WithStderrChan(stderrChan),
-		exec.WithCPULimit(10), exec.WithMemoryLimit(1024))
+		exec.WithCPULimit(100), exec.WithMemoryLimit(1024*1024))
 	if err != nil {
 		panic(err.Error())
 	}
@@ -41,7 +41,7 @@ func main() {
 		cmd.Terminate()
 	})
 	if err := cmd.Execute(); err != nil {
-		fmt.Printf("error: %v", err.Error())
+		fmt.Printf("error: %v\n", err.Error())
 	}
 	cmd.Finish()
 	wg.Wait()

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -13,7 +14,17 @@ import (
 	"github.com/google/uuid"
 )
 
-const cgroupV2Path = "/sys/fs/cgroup"
+type jobStateType string
+
+const (
+	jobStateUnknown    jobStateType = "unknown"
+	jobStateInit                    = "init"
+	jobStateRunning                 = "running"
+	jobStateTerminated              = "terminated"
+	jobStateFinished                = "finished"
+
+	cgroupV2Path = "/sys/fs/cgroup"
+)
 
 type commandImpl struct {
 	id         string
@@ -30,6 +41,8 @@ type commandImpl struct {
 	cmd        *exec.Cmd
 	waitGroup  sync.WaitGroup
 	err        error
+	lock       sync.Mutex
+	jobState   jobStateType
 }
 
 func ptr[T any](v T) *T {
@@ -39,7 +52,8 @@ func ptr[T any](v T) *T {
 func newCommand(name string, args []string, options ...CommandOption) (Command, error) {
 	// Initialize defaults and mandatory params
 	execCmd := &commandImpl{id: uuid.New().String(),
-		name: name, args: args, timeout: 10 * time.Minute}
+		name: name, args: args, timeout: 10 * time.Minute,
+		jobState: jobStateInit}
 	for _, option := range options {
 		if err := option(execCmd); err != nil {
 			// Cleanup of incomplete initialization
@@ -86,6 +100,16 @@ func (c *commandImpl) initControlGroup() error {
 		}
 	}
 
+	return nil
+}
+
+func (c *commandImpl) setState(expectedStates []jobStateType, newState jobStateType) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if !slices.Contains(expectedStates, c.jobState) {
+		return errors.New("invalid current state " + string(c.jobState))
+	}
+	c.jobState = newState
 	return nil
 }
 

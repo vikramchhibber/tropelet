@@ -15,12 +15,22 @@ func (c *commandImpl) GetID() string {
 }
 
 func (c *commandImpl) Execute() error {
+	if err := c.setState([]jobStateType{jobStateInit},
+		jobStateRunning); err != nil {
+		return err
+	}
 	c.err = c.execute()
+	if err := c.setState([]jobStateType{jobStateRunning},
+		jobStateTerminated); err != nil {
+		return err
+	}
+
 	return c.err
 }
 
 func (c *commandImpl) IsTerminated() bool {
-	return c.cmd.ProcessState.Exited()
+	// 	return c.cmd.ProcessState.Exited()
+	return c.jobState == jobStateTerminated
 }
 
 func (c *commandImpl) GetExitError() error {
@@ -34,10 +44,20 @@ func (c *commandImpl) Terminate() {
 }
 
 func (c *commandImpl) Finish() {
+	if err := c.setState([]jobStateType{jobStateInit,
+		jobStateRunning, jobStateTerminated},
+		jobStateFinished); err != nil {
+		return
+	}
 	c.Terminate()
 	// We will wait for all the goroutines
 	// to finish before closing the channels
 	c.waitGroup.Wait()
+	// If there is an error, pass on to the
+	// stderr channel
+	if c.stderrChan != nil && c.err != nil {
+		c.stderrChan <- []byte(c.err.Error())
+	}
 	if c.cgroupPath != "" {
 		os.RemoveAll(c.cgroupPath)
 	}
