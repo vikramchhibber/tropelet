@@ -37,13 +37,12 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
-
 	shared.RegisterShutdownSigCallback(func() {
-		cmd.Finish()
-		fmt.Printf("done\n")
+		cmd.Terminate()
 	})
 	if err := cmd.Execute(); err != nil {
-		panic(err.Error())
+		fmt.Printf("error: %v", err.Error())
 	}
+	cmd.Finish()
 	wg.Wait()
 }

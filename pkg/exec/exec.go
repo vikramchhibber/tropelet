@@ -4,17 +4,16 @@ import (
 	"time"
 )
 
-type OnTerminateCB func(error)
-
 type Command interface {
 	GetID() string
 	Execute() error
-	ExecuteAsync(onTerminateCB OnTerminateCB)
 	IsTerminated() bool
 	GetExitError() error
 	Terminate()
 	Finish()
 }
+
+type ReadChannel chan []byte
 
 type CommandOption func(*commandImpl) error
 
@@ -24,26 +23,23 @@ func NewCommand(name string, args []string, options ...CommandOption) (Command, 
 
 func WithTimeout(timeout time.Duration) CommandOption {
 	return func(c *commandImpl) error {
-		c.timeout = timeout
-		return nil
+		return c.withTimeout(timeout)
 	}
 }
 
-func WithStdoutChan(stdoutChan chan []byte) CommandOption {
+func WithStdoutChan(stdoutChan ReadChannel) CommandOption {
 	return func(c *commandImpl) error {
-		c.stdoutChan = stdoutChan
-		return nil
+		return c.withStdoutChan(stdoutChan)
 	}
 }
 
-func WithStderrChan(stderrChan chan []byte) CommandOption {
+func WithStderrChan(stderrChan ReadChannel) CommandOption {
 	return func(c *commandImpl) error {
-		c.stderrChan = stderrChan
-		return nil
+		return c.withStderrChan(stderrChan)
 	}
 }
 
-func WithCPULimit(quotaPct uint8) CommandOption {
+func WithCPULimit(quotaPct uint16) CommandOption {
 	return func(c *commandImpl) error {
 		return c.setCPULimit(quotaPct)
 	}
