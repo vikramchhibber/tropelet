@@ -29,7 +29,8 @@ func (c *commandImpl) Execute() error {
 }
 
 func (c *commandImpl) IsTerminated() bool {
-	// 	return c.cmd.ProcessState.Exited()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	return c.jobState == jobStateTerminated
 }
 
@@ -38,26 +39,27 @@ func (c *commandImpl) GetExitError() error {
 }
 
 func (c *commandImpl) Terminate() {
-	if c.cmd != nil && c.cmd.Cancel != nil {
-		c.cmd.Cancel()
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if c.err == nil && c.cmd != nil && c.cmd.Process != nil {
+		if !c.cmd.ProcessState.Exited() {
+			c.cmd.Process.Kill()
+		}
 	}
 }
 
 func (c *commandImpl) Finish() {
+	// Finish can be called in any of these states.
 	if err := c.setState([]jobStateType{jobStateInit,
 		jobStateRunning, jobStateTerminated},
 		jobStateFinished); err != nil {
+		// Already in finished state
 		return
 	}
 	c.Terminate()
 	// We will wait for all the goroutines
 	// to finish before closing the channels
 	c.waitGroup.Wait()
-	// If there is an error, pass on to the
-	// stderr channel
-	if c.stderrChan != nil && c.err != nil {
-		c.stderrChan <- []byte(c.err.Error())
-	}
 	if c.cgroupPath != "" {
 		os.RemoveAll(c.cgroupPath)
 	}
@@ -103,7 +105,7 @@ func (c *commandImpl) execute() error {
 		return fmt.Errorf("failed to add process to cgroup: %v", err)
 	}
 
-	// Process the outputs
+	// Wait for the process to terminate
 	return c.cmd.Wait()
 }
 
