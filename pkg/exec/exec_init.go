@@ -36,6 +36,9 @@ type commandImpl struct {
 	// CPU, memory disk utilization limits
 	cpuLimitPct uint16
 	memLimitKB  uint32
+	newRoot     string
+	// This becomes current directory of the command
+	scratchDir string // This is newRoot + job-id
 
 	cgroupPath string
 	cmd        *exec.Cmd
@@ -61,8 +64,14 @@ func newCommand(name string, args []string, options ...CommandOption) (Command, 
 			return nil, err
 		}
 	}
+
 	if err := execCmd.initControlGroup(); err != nil {
 		// Cleanup of incomplete initialization
+		execCmd.Finish()
+		return nil, err
+	}
+
+	if err := execCmd.mountNewRoot(); err != nil {
 		execCmd.Finish()
 		return nil, err
 	}
@@ -143,5 +152,11 @@ func (c *commandImpl) withStdoutChan(stdoutChan ReadChannel) error {
 
 func (c *commandImpl) withStderrChan(stderrChan ReadChannel) error {
 	c.stderrChan = stderrChan
+	return nil
+}
+
+func (c *commandImpl) withNewRoot(newRoot string) error {
+	c.newRoot = newRoot
+
 	return nil
 }

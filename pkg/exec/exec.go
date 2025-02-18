@@ -9,6 +9,7 @@ type Command interface {
 	Execute() error
 	IsTerminated() bool
 	GetExitError() error
+	GetExitCode() int
 	Terminate()
 	Finish()
 }
@@ -48,5 +49,11 @@ func WithCPULimit(quotaPct uint16) CommandOption {
 func WithMemoryLimit(memKB uint32) CommandOption {
 	return func(c *commandImpl) error {
 		return c.setMemoryLimit(memKB)
+	}
+}
+
+func WithNewRoot(newRoot string) CommandOption {
+	return func(c *commandImpl) error {
+		return c.withNewRoot(newRoot)
 	}
 }

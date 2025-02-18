@@ -6,8 +6,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	_ "os/signal"
 	"path/filepath"
 	"strconv"
+	"syscall"
 )
 
 func (c *commandImpl) GetID() string {
@@ -38,37 +40,66 @@ func (c *commandImpl) GetExitError() error {
 	return c.err
 }
 
+func (c *commandImpl) GetExitCode() int {
+	if c.cmd != nil && c.cmd.ProcessState != nil {
+		return c.cmd.ProcessState.ExitCode()
+	}
+
+	// TODO, correct code to return here
+	return 0
+}
+
 func (c *commandImpl) Terminate() {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	if c.err == nil && c.cmd != nil && c.cmd.Process != nil {
-		if !c.cmd.ProcessState.Exited() {
-			c.cmd.Process.Kill()
+
+	if c.cmd != nil && c.cmd.Process != nil {
+		if process, err := os.FindProcess(c.cmd.Process.Pid); err == nil {
+			fmt.Printf("Sending term signal\n")
+			if err := process.Signal(syscall.SIGTERM); err != nil {
+				fmt.Printf("failed sending term signal\n")
+			}
 		}
 	}
 }
 
 func (c *commandImpl) Finish() {
-	// Finish can be called in any of these states.
+	// Finish can be called in any of these states
+	// except finished
 	if err := c.setState([]jobStateType{jobStateInit,
 		jobStateRunning, jobStateTerminated},
 		jobStateFinished); err != nil {
 		// Already in finished state
 		return
 	}
-	c.Terminate()
+
+	// Get the process group ID.
+	if c.cmd != nil && c.cmd.Process != nil {
+		if pgid, err := syscall.Getpgid(c.cmd.Process.Pid); err == nil {
+			// Send SIGKILL to the entire process group.
+			fmt.Printf("sending kill to all processes in group\n")
+			if err := syscall.Kill(-pgid, syscall.SIGKILL); err != nil {
+				fmt.Printf("failed to send SIGKILL to process group: %v", err)
+			}
+		} else {
+			fmt.Printf("group pid not found\n")
+		}
+	}
+
 	// We will wait for all the goroutines
 	// to finish before closing the channels
 	c.waitGroup.Wait()
-	if c.cgroupPath != "" {
-		os.RemoveAll(c.cgroupPath)
-	}
 	if c.stdoutChan != nil {
 		close(c.stdoutChan)
 	}
 	if c.stderrChan != nil {
 		close(c.stderrChan)
 	}
+	if c.cgroupPath != "" {
+		os.RemoveAll(c.cgroupPath)
+	}
+
+	c.umountNewRoot()
 }
 
 func (c *commandImpl) execute() error {
@@ -94,15 +125,23 @@ func (c *commandImpl) execute() error {
 		go c.readPipe(c.stderrChan, stderrPipe)
 	}
 
+	c.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if c.newRoot != "" {
+		c.cmd.SysProcAttr.Chroot = c.newRoot
+		c.cmd.Dir = "/"
+	}
+
 	// Command execution
 	if err := c.cmd.Start(); err != nil {
 		return err
 	}
 
-	cgroupProcs := filepath.Join(c.cgroupPath, "cgroup.procs")
-	if err := os.WriteFile(cgroupProcs, []byte(strconv.Itoa(
-		c.cmd.Process.Pid)), 0644); err != nil {
-		return fmt.Errorf("failed to add process to cgroup: %v", err)
+	if c.cgroupPath != "" {
+		cgroupProcs := filepath.Join(c.cgroupPath, "cgroup.procs")
+		if err := os.WriteFile(cgroupProcs, []byte(strconv.Itoa(
+			c.cmd.Process.Pid)), 0644); err != nil {
+			return fmt.Errorf("failed to add process to cgroup: %v", err)
+		}
 	}
 
 	// Wait for the process to terminate
