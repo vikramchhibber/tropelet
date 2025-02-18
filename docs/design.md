@@ -18,7 +18,7 @@ This prototype consists of three components:
 
 ### Choice of cipher suits and TLS version
 1. Since both the client and server are under our control and the server does not need to interoperate with multiple types of clients, we will use only TLS 1.3 version. This version of TLS includes strongest cipher suites and key exchange algorithms supporting perfect forward secrecy (**ECDHE**). We will support EC curves **P384** and **P521**.
-2. Since the underlying TLS go library does not support application to configure the bulk encryption algorithms, we will rely on the algorithm chosen by the library. This should ideally be **AES-GCM** 128 or 256 bits.
+2. Since the underlying TLS go library does not support application to configure the bulk encryption algorithms, we will rely on the algorithm chosen by the library. This should ideally be **AES-GCM** (128 or 256 bits), or **CHACHA20_POLY1305**.
 
 >Newer version of Go >= 1.24 also support post-quantum key exchange (**ML-KEM**) mechanisms. The solution will not support this.
 
@@ -29,9 +29,6 @@ This prototype consists of three components:
 4. Assuming every CA signs certificates with unique serial numbers, this approach ensures that each client can be uniquely identified, even if certificates are issued by the same authority.
 5. Including the **Issuer** in the identifier ensures that if the issuing authority changes in the future, the server can still uniquely identify certificates/clients, even in the event of a serial number conflict.
 
-## Authorization
-We will restrict the use of commands that pose a risk to data integrity or system security. Some of the commands that we include are **rm**, **chmod**, **chown** and **sudo**.
-
 
 # Server
 1. The server service will implement a gRPC service and will support multiple concurrent client connections. These connections may originate from clients with the same identity, such as when multiple CLI clients are started with same client certificate. Thus, the server will have ability to fork the output of running job to multiple gRPC client connections.
@@ -39,19 +36,17 @@ We will restrict the use of commands that pose a risk to data integrity or syste
 3. If a job is running, the server will continue to maintain state associated with client identity even after all incoming client connections have terminated under that identity, since the solution will support CLI clients reattaching to running jobs.
 4. The server will not maintain any state for client-id once all its client connections and jobs have terminated.
 5. The server will support graceful shutdown terminating running jobs and client connections if **SIGINT**, **SIGTERM** signals are received.
-6. The server will not cache the output of running jobs when no client is attached. Consequently, if a client loses its connection, it will not be able to retrieve any previously generated output from the job.
-7. The server will disconnect client connections once the associated job terminates.
-8. Since the expectation for the server solution is to create c-groups, network namespaces and mounts, the server needs to run as superuser/privileged process. Many of the operations like c-group, change root, cannot be performed just by using **capabilities**.
+6. The server will disconnect client connections once the associated job terminates.
+7. Since the expectation for the server solution is to create c-groups, network namespaces and mounts, the server needs to run as superuser/privileged process. Many of the operations like c-group, change root, cannot be performed just by using **capabilities**.
 
 
 # Exec library
-1.	A generalized **exec** library will be implemented that manages the lifecycle of job requested.
-2.	This library will be integrated as part of server and will not include any dependency of server or client solution.
-3.	The library will encapsulate the complexities of Linux c-groups, network namespaces, and filesystem management, providing a set of intuitive, high-level APIs for applications.
-4.	The library will be stateful, as it needs to manage job lifecycle and will perform all the necessary cleanup once the job terminates.
-5.	The library will use c-groups v2, assuming that the target Linux kernel is recent enough to support it.
-6.	The library will provide file system isolation my mounting necessary host OS directories and changing root of the job.
-7.	The library will isolate network traffic by running each job in its own network namespace, creating a single host bridge that connects multiple namespaces. It will support only one subnet for the bridge and virtual Ethernet interfaces.
+1.	This library will be integrated as part of server and will not include any dependency of server or client solution.
+2.	The library will encapsulate the complexities of Linux c-groups, network namespaces, and filesystem management, providing a set of intuitive, high-level APIs for applications.
+3.	The library will be stateful, as it needs to manage job lifecycle and will perform all the necessary cleanup once the job terminates.
+4.	The library will use c-groups v2, assuming that the target Linux kernel is recent enough to support it.
+5.	The library will provide file system isolation my mounting necessary host OS directories and changing root of the job.
+6.	The library will isolate network traffic by running each job in its own network namespace, creating a single host bridge that connects multiple namespaces. It will support only one subnet for the bridge and virtual Ethernet interfaces. This is stretch goal functionality.
 
 # CLI Client
 1. Connect to the remote server and get details on running jobs for this client
