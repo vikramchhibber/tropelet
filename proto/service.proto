@@ -9,9 +9,11 @@ import "proto/messages.proto";
 // gRPC service definition for job execution service
 service JobService {
   // List all the running jobs for connecting client.
-  rpc ListJobes(ListJobesRequest) returns (ListJobesResponse);
+  rpc ListJobs(ListJobsRequest) returns (ListJobsResponse);
+  // Get the status of job either runing or terminated
+  rpc GetJobStatus(GetJobStatusRequest) returns (GetJobStatusResponse);
   // Request a new job launch on the server side.
-  rpc LaunchJob(LaunchJobRequest) returns (stream LaunchJobResponse);
+  rpc LaunchJob(LaunchJobRequest) returns (LaunchJobResponse);
   // Attaches to a running job and gets its stderr, stdout streams.
   rpc AttachJob(AttachJobRequest) returns (stream AttachJobResponse);
   // Request termination of running job.
