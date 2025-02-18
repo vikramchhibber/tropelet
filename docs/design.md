@@ -1,7 +1,7 @@
 # Introduction
 These notes cover brief design and scope of a job execution service that can run arbitrary Linux jobs initiated by authenticated remote clients.
 This prototype consists of three components:
-1.	A library providing APIs to launch, terminate, and check the status of Linux job. It will isolate each job in its own network namespace with separate PID and filesystem, and it uses cgroups to limit CPU, memory, and I/O usage.
+1.	A library providing APIs to launch, terminate, and check the status of Linux job. It will isolate each job in its own network namespace with separate PID and filesystem, and will use cgroups to limit CPU, memory, and I/O usage.
 2.	The gRPC service leveraging this library to offer server-side calls for launching, terminating, and querying running job status. The server will authenticate the connecting clients using certificates.
 3.	The command-line interface utility connecting the gRPC service to interact with the user and making client side gRPC calls.
 
@@ -18,7 +18,7 @@ This prototype consists of three components:
 
 ### Choice of cipher suits and TLS version
 1. Since both the client and server are under our control and the server does not need to interoperate with multiple types of clients, we will use only TLS 1.3 version. This version of TLS includes strongest cipher suites and key exchange algorithms supporting perfect forward secrecy (**ECDHE**). We will support EC curves **P384** and **P521**.
-2. Since the underlying TLS go library does not support application to configure the bulk encryption algorithms, we will rely on the algorithm chosen by the library. This should ideally be **AES-GCM** 128 or 256.
+2. Since the underlying TLS go library does not support application to configure the bulk encryption algorithms, we will rely on the algorithm chosen by the library. This should ideally be **AES-GCM** 128 or 256 bits.
 
 >Newer version of Go >= 1.24 also support post-quantum key exchange (**ML-KEM**) mechanisms. The solution will not support this.
 
@@ -35,7 +35,7 @@ We will restrict the use of commands that pose a risk to data integrity or syste
 
 # Server
 1. The server service will implement a gRPC service and will support multiple concurrent client connections. These connections may originate from clients with the same identity, such as when multiple CLI clients are started with same client certificate. Thus, the server will have ability to fork the output of running job to multiple gRPC client connections.
-2. The server internally will have a map associating **SHA-1** client identity with multiple incoming gRPC connection streams and multiple running job states.
+2. The server internally will have a map associating **SHA-1** client identity with multiple incoming gRPC connection streams and multiple running job handlers.
 3. If a job is running, the server will continue to maintain state associated with client identity even after all incoming client connections have terminated under that identity, since the solution will support CLI clients reattaching to running jobs.
 4. The server will not maintain any state for client-id once all its client connections and jobs have terminated.
 5. The server will support graceful shutdown terminating running jobs and client connections if **SIGINT**, **SIGTERM** signals are received.
