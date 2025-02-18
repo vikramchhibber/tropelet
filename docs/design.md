@@ -66,7 +66,7 @@ func WithStderrChan(stderrChan ReadChannel) CommandOption
 func WithMemoryLimit(memKB uint32) CommandOption
 ...
 
-func NewCommand(name string, args []string, options ...CommandOption)
+func NewCommand(name string, args []string, options ...CommandOption) (Command, error)
 ```
 
 # CLI Client
