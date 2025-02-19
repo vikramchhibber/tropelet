@@ -17,14 +17,16 @@ message JobEntry {
   google.protobuf.Timestamp start_ts = 4;
   // End time of the job if it is terminated.
   optional google.protobuf.Timestamp end_ts = 5;
-  // Error if job terminated with error.
-  optional string error = 6;
+  // Error string if job terminated with error.
+  optional string exit_error = 6;
+  // Exit code of the job after termination.
+  optional int32 exit_code = 7;
 }
 
 message JobStreamEntry {
   // Standard output or error stream entry
   bytes entry = 1;
-  // True if entry is standard error
+  // Flag indicating if entry is standard error or output.
   bool is_std_error = 2;
 }
 
