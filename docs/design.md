@@ -39,8 +39,6 @@ This prototype consists of three components:
 6. Since the expectation for the server solution is to create c-groups, network namespaces and mounts, the server needs to run as superuser/privileged process. Many of the operations like c-group, change root, cannot be performed just by using **capabilities**.
 7. Server will use following cgroup values:
 ```
-# Library will take % value. Will set this to 50%.
-# Which would be 50000 quota ms with fixed 1000000 period ms.
 cpu.max: 500000 1000000
 memory.max: 268435456 (256MB)
 io.max = 1048576 wbps and 4 * 4194304 rbps
