@@ -54,7 +54,7 @@ io.max = 1048576 wbps and 4 * 4194304 rbps
 4.	The library will use c-groups v2, assuming that the target Linux kernel is recent enough to support it.
 5.	The library will provide file system isolation my mounting necessary host OS directories and changing root of the job. It will mount following mount directories from host OS: /usr/lib, /usr/bin, /lib, /lib64, proc and cgroup2. The library will also create a scratch directory named after the job-ID under the new root and change the process's current directory to it.
 6.	The library will isolate network traffic by running each job in its own network namespace, creating a single host bridge that connects multiple namespaces. It will support only one subnet for the bridge and virtual Ethernet interfaces. This is stretch goal functionality.
-7. The library streams stdout and stderr using Go channels provided by the application. This approach gives the application the flexibility to buffer the stream or support multiple readers, and it also conveniently notifies the application when EOF is reached or an error occurs.8. The proposed public interface exposed by this library:
+7.	The library streams stdout and stderr using Go channels provided by the application. This approach gives the application the flexibility to buffer the stream or support multiple readers, and it also conveniently notifies the application when EOF is reached or an error occurs.8. The proposed public interface exposed by this library:
 ```
 type Command interface {
         GetID() string
@@ -75,10 +75,10 @@ func WithMemoryLimit(memKB uint32) CommandOption
 
 func NewCommand(name string, args []string, options ...CommandOption) (Command, error)
 ```
-8. The library implements following three operations.
-  a. New command init: This includes validate passed arguments, create c-groups hierarchy, and prepare new root by mounting needed directories.
-  b. Execute command: This includes creating command context, creating stdout/stderr go routines, start the command, get the PID and attach to the cgroups, and wait for the process to exit.
-  c. Finish: This includes umount, cgroups hierarchy cleanup, wait on go routines exit and closing stdout/stderr channels.
+8.	The library implements following three operations.
+New command init: This includes validate passed arguments, create c-groups hierarchy, and prepare new root by mounting needed directories.
+Execute command: This includes creating command context, creating stdout/stderr go routines, start the command, get the PID and attach to the cgroups, and wait for the process to exit.
+Finish: This includes umount, cgroups hierarchy cleanup, wait on go routines exit and closing stdout/stderr channels.
 
 
 # CLI Client
