@@ -67,6 +67,7 @@ type Command interface {
         GetID() string
         Execute() error
         IsTerminated() bool
+        GetExitCode() int
         GetExitError() error
         Terminate()
         Finish()
