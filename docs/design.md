@@ -23,7 +23,7 @@ This prototype consists of three components:
 >Newer version of Go >= 1.24 also support post-quantum key exchange (**ML-KEM**) mechanisms. The solution will not support this.
 
 ## Client identification
-1. A client can start a job by connecting to the server. However, the network connection may break for various reasons. The solution will provide ability to query the status of running jobs and reattach to continue receiving job output. Therefore, the server must be able to identify connecting clients and associate some internal state with them.
+1. A client can start a job by connecting to the server. However, the network connection may break for various reasons. The solution will provide ability to query the status of running jobs and reattach to continue receiving job output. Therefore, the server must be able to identify connecting clients and associate some internal state with them. This internal state under a client-id, includes information on all the jobs initiated by the client in running or terminated state. It will also include gRPC stream transient state if a gRPC client is connected to the server.
 2. Since we are using mTLS for authentication, the server will identify clients based solely on the verified client certificate. It will not rely on any other identifier from application-level messages.
 3. The server will derive a composite key using the **SHA-1** hash (Weaker hash, meant for key and no cryptographic significance) of the received client certificate’s **Issuer** and **Serial Number**. This key will be used by server to associate client connections with internal state.
 4. Assuming every CA signs certificates with unique serial numbers, this approach ensures that each client can be uniquely identified, even if certificates are issued by the same authority.
@@ -121,4 +121,5 @@ ba7371d5-a848-4b5d-b90a-7479342051a4 terminated foo-bar [not found]
 
 
 # gRPC
-The service proto definition: https://github.com/vikramchhibber/tropelet/tree/design_doc/proto
+1. The service proto definition: https://github.com/vikramchhibber/tropelet/tree/design_doc/proto
+2. The server will indicate to the client whether a stream message comes from standard error or standard output. The client can use this information to handle error messages differently, for example by rendering them in red."
