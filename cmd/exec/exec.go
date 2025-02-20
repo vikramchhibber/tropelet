@@ -37,11 +37,11 @@ func main() {
 	if len(os.Args) == 2 {
 		cmd, err = exec.NewCommand(os.Args[1], []string{},
 			exec.WithStdoutChan(stdoutChan), exec.WithStderrChan(stderrChan),
-			exec.WithNewRoot("./newroot9"), exec.WithCPULimit(1))
+			exec.WithNewRoot("./newroot9"), exec.WithCPULimit(100, 1000))
 	} else if len(os.Args) > 2 {
 		cmd, err = exec.NewCommand(os.Args[1], os.Args[2:],
 			exec.WithStdoutChan(stdoutChan), exec.WithStderrChan(stderrChan),
-			exec.WithNewRoot("./newroot9"), exec.WithCPULimit(1))
+			exec.WithNewRoot("./newroot9"), exec.WithCPULimit(100, 1000))
 	}
 	if err != nil {
 		fmt.Printf("error in cmd creation: %v", err.Error())

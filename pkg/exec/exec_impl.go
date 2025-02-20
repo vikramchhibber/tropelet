@@ -2,13 +2,11 @@ package exec
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
-	_ "os/signal"
-	"path/filepath"
-	"strconv"
 	"syscall"
 )
 
@@ -45,27 +43,24 @@ func (c *commandImpl) GetExitCode() int {
 		return c.cmd.ProcessState.ExitCode()
 	}
 
-	// TODO, correct code to return here
 	return 0
 }
 
-func (c *commandImpl) Terminate() {
+func (c *commandImpl) SendTermSignal() error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-
 	if c.cmd != nil && c.cmd.Process != nil {
 		if process, err := os.FindProcess(c.cmd.Process.Pid); err == nil {
-			fmt.Printf("Sending term signal\n")
-			if err := process.Signal(syscall.SIGTERM); err != nil {
-				fmt.Printf("failed sending term signal\n")
-			}
+			return process.Signal(syscall.SIGTERM)
 		}
 	}
+
+	return errors.New("process not in running state")
 }
 
 func (c *commandImpl) Finish() {
 	// Finish can be called in any of these states
-	// except finished
+	// except "finished"
 	if err := c.setState([]jobStateType{jobStateInit,
 		jobStateRunning, jobStateTerminated},
 		jobStateFinished); err != nil {
@@ -95,11 +90,15 @@ func (c *commandImpl) Finish() {
 	if c.stderrChan != nil {
 		close(c.stderrChan)
 	}
-	if c.cgroupPath != "" {
-		os.RemoveAll(c.cgroupPath)
+	if c.netMgr != nil {
+		c.netMgr.Finish()
 	}
-
-	c.umountNewRoot()
+	if c.cgroupsMgr != nil {
+		c.cgroupsMgr.Finish()
+	}
+	if c.mountFSMgr != nil {
+		c.mountFSMgr.Finish()
+	}
 }
 
 func (c *commandImpl) execute() error {
@@ -125,22 +124,35 @@ func (c *commandImpl) execute() error {
 		go c.readPipe(c.stderrChan, stderrPipe)
 	}
 
-	c.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	if c.newRoot != "" {
-		c.cmd.SysProcAttr.Chroot = c.newRoot
+	c.cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+		Pgid:    0,
+		Cloneflags: syscall.CLONE_NEWPID | // New PID namespace
+			syscall.CLONE_NEWNET | // New network namespace
+			syscall.CLONE_NEWNS, // New mount namespace (needed for /proc)
+		//		Cloneflags: syscall.CLONE_NEWNET,
+		Unshareflags: syscall.CLONE_NEWNS, // Make sure mount changes are private
+	}
+	if c.mountFSMgr != nil {
+		c.cmd.SysProcAttr.Chroot = c.mountFSMgr.GetMountRoot()
 		c.cmd.Dir = "/"
 	}
 
-	// Command execution
+	// Execute command
 	if err := c.cmd.Start(); err != nil {
 		return err
 	}
 
-	if c.cgroupPath != "" {
-		cgroupProcs := filepath.Join(c.cgroupPath, "cgroup.procs")
-		if err := os.WriteFile(cgroupProcs, []byte(strconv.Itoa(
-			c.cmd.Process.Pid)), 0644); err != nil {
-			return fmt.Errorf("failed to add process to cgroup: %v", err)
+	if c.netMgr != nil {
+		if err := c.netMgr.AttachLocalIntf(c.cmd.Process.Pid); err != nil {
+			return err
+		}
+	}
+
+	// Attach the launched process PID
+	if c.cgroupsMgr != nil {
+		if err := c.cgroupsMgr.AttachPID(c.cmd.Process.Pid); err != nil {
+			return err
 		}
 	}
 
@@ -157,7 +169,7 @@ func (c *commandImpl) readPipe(dst ReadChannel, src io.Reader) {
 		// consumer sends back the read buffer to producer
 		// after using it.
 		// TODO: Config candidate
-		buf := make([]byte, 512)
+		buf := make([]byte, 64)
 		n, err := io.ReadFull(src, buf)
 		if n != 0 {
 			// This can happen if EOF is reached

@@ -10,7 +10,7 @@ type Command interface {
 	IsTerminated() bool
 	GetExitError() error
 	GetExitCode() int
-	Terminate()
+	SendTermSignal() error
 	Finish()
 }
 
@@ -40,13 +40,13 @@ func WithStderrChan(stderrChan ReadChannel) CommandOption {
 	}
 }
 
-func WithCPULimit(quotaPct uint16) CommandOption {
+func WithCPULimit(quotaMillSeconds, periodMillSeconds int64) CommandOption {
 	return func(c *commandImpl) error {
-		return c.setCPULimit(quotaPct)
+		return c.setCPULimit(quotaMillSeconds, periodMillSeconds)
 	}
 }
 
-func WithMemoryLimit(memKB uint32) CommandOption {
+func WithMemoryLimit(memKB int64) CommandOption {
 	return func(c *commandImpl) error {
 		return c.setMemoryLimit(memKB)
 	}
@@ -55,5 +55,11 @@ func WithMemoryLimit(memKB uint32) CommandOption {
 func WithNewRoot(newRoot string) CommandOption {
 	return func(c *commandImpl) error {
 		return c.withNewRoot(newRoot)
+	}
+}
+
+func WithNewNS() CommandOption {
+	return func(c *commandImpl) error {
+		return c.withNewNS()
 	}
 }
