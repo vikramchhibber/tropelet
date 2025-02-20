@@ -121,7 +121,6 @@ func (c *commandImpl) execute() error {
 		c.waitGroup.Add(1)
 		go c.readPipe(c.stderrChan, stderrPipe)
 	}
-
 	c.cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
 		Cloneflags: syscall.CLONE_NEWPID | syscall.CLONE_NEWNET |
@@ -131,8 +130,6 @@ func (c *commandImpl) execute() error {
 	if c.mountFSMgr != nil {
 		c.cmd.SysProcAttr.Chroot = c.mountFSMgr.GetMountRoot()
 		c.cmd.Dir = "/"
-		// This is needed for PID isolation
-		c.mountFSMgr.MountPrivateProc()
 	}
 
 	// Attach the launched process PID

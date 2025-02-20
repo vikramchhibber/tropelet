@@ -9,26 +9,20 @@ import (
 	"github.com/troplet/pkg/exec/cgroups"
 )
 
-type mountFSInfo struct {
+var fsInfo = []struct {
 	source       string
 	targetPrefix string
 	fstype       string
 	flags        uintptr
 	permissions  os.FileMode
-}
-
-var procFSInfo = &mountFSInfo{
-	"proc", "proc", "proc", 0, 600,
-}
-
-var fsInfo = []*mountFSInfo{
+}{
 	{"/usr/bin", "usr/bin", "", syscall.MS_BIND | syscall.MS_RDONLY, 500},
 	{"/usr/lib", "usr/lib", "", syscall.MS_BIND | syscall.MS_RDONLY, 500},
 	{"/usr/sbin", "usr/sbin", "", syscall.MS_BIND | syscall.MS_RDONLY, 500},
 	{"/lib", "lib", "", syscall.MS_BIND | syscall.MS_RDONLY, 500},
 	{"/bin", "bin", "", syscall.MS_BIND | syscall.MS_RDONLY, 500},
 	{"/lib64", "lib64", "", syscall.MS_BIND | syscall.MS_RDONLY, 500},
-	procFSInfo,
+	{"proc", "proc", "proc", 0, 600},
 	{"", cgroups.CGroupV2Path, "cgroup2", 0, 500},
 }
 
@@ -45,18 +39,10 @@ func (m *MountFSManager) GetMountRoot() string {
 }
 
 func (m *MountFSManager) Mount() error {
-	return m.mount(fsInfo)
-}
-
-func (m *MountFSManager) MountPrivateProc() error {
-	return m.mount([]*mountFSInfo{procFSInfo})
-}
-
-func (m *MountFSManager) mount(info []*mountFSInfo) error {
 	if m.mountRoot == "" {
 		return nil
 	}
-	for _, d := range info {
+	for _, d := range fsInfo {
 		target := filepath.Join(m.mountRoot, d.targetPrefix)
 		if err := os.MkdirAll(target, d.permissions); err != nil {
 			return fmt.Errorf("failed to create %s: %v", target, err)
@@ -72,13 +58,6 @@ func (m *MountFSManager) mount(info []*mountFSInfo) error {
 func (m *MountFSManager) Finish() {
 	if m.mountRoot == "" {
 		return
-	}
-
-	// Umount private proc
-	target := filepath.Join(m.mountRoot, procFSInfo.targetPrefix)
-	if err := syscall.Unmount(target, 0); err != nil {
-		fmt.Printf("failed unmounting 2 %s\n", target)
-		// TODO: Log error and continue
 	}
 
 	for i := len(fsInfo) - 1; i >= 0; i-- {
