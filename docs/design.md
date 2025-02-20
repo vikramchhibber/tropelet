@@ -10,7 +10,7 @@ This prototype consists of three components:
 ### mTLS
 1. The server and its clients will use mutual TLS authentication (mTLS) mechanism to verify each other. 
 2. The solution will include script to generate self-signed root certificate (CA), and scripts for signing server and client certificates.
-3. This generated root CA will be included in both the client and server certificate authority bundles, enabling them to verify each other’s certificate chain.
+3. This generated root CA will be included in both the client and server certificate authority bundles, enabling them to verify each other's certificate chain.
 4. The TLS client authentication policy on server side will mandate requesting client certificate and verification during handshake. The client will also verify server certificate.
 5. All certificates will be **ECDSA** algorithms based, as these are computationally faster than RSA, providing the same level of security with smaller key sizes. The signing algorithm for the certificate will be **ecdsa-with-SHA384**.
 
@@ -23,18 +23,16 @@ This prototype consists of three components:
 >Newer version of Go >= 1.24 also support post-quantum key exchange (**ML-KEM**) mechanisms. The solution will not support this.
 
 ## Client identification
-1. A client can start a job by connecting to the server. However, the network connection may break for various reasons. The solution will provide ability to query the status of running jobs and reattach to continue receiving job output. Therefore, the server must be able to identify connecting clients and associate some internal state with them. This internal state under a client-id, includes information on all the jobs initiated by the client in running or terminated state. It will also include gRPC stream transient state if a gRPC client is connected to the server.
+1. A client can submit a job on the server, query its status and attach to get the standard output and error. The server must be able to identify connecting clients and associate some internal state with them. This internal state under a client-id, includes information on all the jobs initiated by the client in running or terminated state. It will also include gRPC stream transient state if a gRPC client is connected to the server.
 2. Since we are using mTLS for authentication, the server will identify clients based solely on the verified client certificate. It will not rely on any other identifier from application-level messages.
-3. The server will derive a composite key using the **SHA-1** hash (Weaker hash, meant for key and no cryptographic significance) of the received client certificate’s **Issuer** and **Serial Number**. This key will be used by server to associate client connections with internal state.
-4. Assuming every CA signs certificates with unique serial numbers, this approach ensures that each client can be uniquely identified, even if certificates are issued by the same authority.
-5. Including the **Issuer** in the identifier ensures that if the issuing authority changes in the future, the server can still uniquely identify certificates/clients, even in the event of a serial number conflict.
+3. The server will use received client certificate subject's **CN** to identify the client and associate client connections with internal state.
 
 
 # Server
 1. The server service will implement a gRPC service and will support multiple concurrent client connections. These connections may originate from clients with the same identity, such as when multiple CLI clients are started with same client certificate. Thus, the server will have ability to fork the output of running job to multiple gRPC client connections.
-2. The server internally will have a map associating **SHA-1** client identity with multiple incoming gRPC connection streams and multiple running job handlers.
-3. If a job is running, the server will continue to maintain state associated with client identity even after all incoming client connections have terminated under that identity, since the solution will support CLI clients reattaching to running jobs.
-4. The server will support graceful shutdown terminating running jobs and client connections if **SIGINT**, **SIGTERM** signals are received.
+2. The server internally will have a map associating client identity with multiple incoming gRPC connection streams and multiple running job handlers.
+3. The server will maintain the state associated with the client identity even after all connections from that client have terminated, since CLI clients will be able to query and attach to running jobs to retrieve output anytime.
+4. The server will support graceful shutdown terminating running jobs and client connections if **SIGINT**, **SIGTERM** signals are received. This is stretch goal.
 5. The server will disconnect client connections once the associated job terminates.
 6. Since the expectation for the server solution is to create c-groups, network namespaces and mounts, the server needs to run as superuser/privileged process. Many of the operations like c-group, change root, cannot be performed just by using **capabilities**.
 7. Server will use following cgroup values:
@@ -43,6 +41,11 @@ cpu.max: 500000 1000000 (grant period)
 memory.max: 268435456 (256MB)
 io.max = 1048576 wbps and 4 * 4194304 rbps
 ```
+The server will use new root directory if provided or current running directory mount to get major and minor number of the block device for setting **io.max** limits.
+
+## Authorization
+1. The server will enforce a policy limiting concurrent jobs per client. The default limit will be two, configurable per client."
+2. The server will enforce a policy limiting job submissions per client per minute. The default will be five, configurable per client."
 
 
 # Exec library
@@ -50,7 +53,7 @@ io.max = 1048576 wbps and 4 * 4194304 rbps
 2.	The library will encapsulate the complexities of Linux c-groups, network namespaces, and filesystem management, providing a set of intuitive, high-level APIs for applications.
 3.	The library will be stateful, as it needs to manage job lifecycle and will perform all the necessary cleanup once the job terminates.
 4.	The library will use c-groups v2, assuming that the target Linux kernel is recent enough to support it.
-5.	The library will provide file system isolation my mounting necessary host OS directories and changing root of the job. The library will create a scratch directory named after the job-ID under the new root and change the process's current directory to it. It will mount following mount directories from host OS:
+5.	The library will provide file system isolation my mounting necessary host OS directories and changing root of the job. It will mount following mount directories from host OS:
 ```
 /usr/lib
 /usr/bin
@@ -61,15 +64,22 @@ cgroup2.
 ```
 
 6.	The library will isolate network traffic by running each job in its own network namespace, creating a single host bridge that connects multiple namespaces. It will support only one subnet for the bridge and virtual Ethernet interfaces. This is stretch goal functionality.
-7.	The library streams stdout and stderr using Go channels provided by the application. This approach gives the application the flexibility to buffer the stream or support multiple readers, and it also conveniently notifies the application when EOF is reached or an error occursThe proposed public interface exposed by this library:
+7.	The library streams stdout and stderr using Go channels provided by the application. This approach gives the application the flexibility to buffer the stream or support multiple readers, and it also conveniently notifies the application when EOF is reached or an error occurs. The proposed public interface exposed by this library:
 ```
 type Command interface {
+		// Gets UUIDv4 as unique ID for this command
         GetID() string
+		// Starts the command and waits for its exit
         Execute() error
+		// Returns true if the command has completed
         IsTerminated() bool
+		// Returns exit code of the completed command
         GetExitCode() int
+		// Returns error if the command has completed with error
         GetExitError() error
-        Terminate()
+		// Sends term signal to the running command. Has no effect if the command is not running.
+        SendTermSignal()
+		Sends kill signal to the running command and performs umount, cgroups cleanup
         Finish()
 }
 type ReadChannel chan []byte
@@ -124,3 +134,4 @@ ba7371d5-a848-4b5d-b90a-7479342051a4 terminated foo-bar [not found]
 # gRPC
 1. The service proto definition: https://github.com/vikramchhibber/tropelet/tree/design_doc/proto
 2. The server will indicate to the client whether a stream message comes from standard error or standard output. The client can use this information to handle error messages differently, for example by rendering them in red."
+
