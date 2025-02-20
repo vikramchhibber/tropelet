@@ -41,7 +41,7 @@ cpu.max: 500000 1000000 (grant period)
 memory.max: 268435456 (256MB)
 io.max = 1048576 wbps and 4 * 4194304 rbps
 ```
-The server will use new root directory if provided or current running directory mount to get major and minor number of the block device for setting **io.max** limits.
+The server will use new root directory if provided or current running directory mount to get major and minor number of the block device for setting **io.max** limits. Server will scan the **/proc/mounts** and will match the longest mount point to given path. Then using os.Stat package to get the major and minor device numbers to set the io limits.
 The job-id will be part of cgroup path to uniquely identity it. "cpu.max", "memory.max" and "io.max" will be created under it.
 ```
 // Example
@@ -49,8 +49,7 @@ The job-id will be part of cgroup path to uniquely identity it. "cpu.max", "memo
 ```
 
 ## Authorization
-1. The server will ensure that clients with different identities cannot stream output from jobs initiated by others.
-2. The server will enforce a policy limiting concurrent jobs per client. The default limit will be two, configurable per client.
+1. The server will ensure that clients with different identities cannot stream output or get status of jobs initiated by others.
 
 
 # Exec library
