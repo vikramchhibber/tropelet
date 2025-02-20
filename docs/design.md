@@ -49,8 +49,8 @@ The job-id will be part of cgroup path to uniquely identity it. "cpu.max", "memo
 ```
 
 ## Authorization
-1. The server will enforce a policy limiting concurrent jobs per client. The default limit will be two, configurable per client."
-2. The server will enforce a policy limiting job submissions per client per minute. The default will be five, configurable per client."
+1. The server will enforce a policy limiting concurrent jobs per client. The default limit will be two, configurable per client.
+2. The server will enforce a policy limiting job submissions per client per minute. The default will be five, configurable per client.
 
 
 # Exec library
