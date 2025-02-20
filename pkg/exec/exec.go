@@ -52,6 +52,12 @@ func WithMemoryLimit(memKB int64) CommandOption {
 	}
 }
 
+func WithIOLimit(deviceMajorNum, deviceMinorNum int32, rbps, wbps int64) CommandOption {
+	return func(c *commandImpl) error {
+		return c.setIOLimit(deviceMajorNum, deviceMinorNum, rbps, wbps)
+	}
+}
+
 func WithNewRoot(newRoot string) CommandOption {
 	return func(c *commandImpl) error {
 		return c.withNewRoot(newRoot)

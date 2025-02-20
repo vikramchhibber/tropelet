@@ -6,20 +6,23 @@ import (
 )
 
 type MemoryControlGroup struct {
-	MemoryKB int64
-
+	memKB      int64
 	cgroupPath string
 }
 
-func NewMemoryControlGroup(cgroupPath string, memoryKB int64) *MemoryControlGroup {
-	return &MemoryControlGroup{memoryKB, cgroupPath}
+func NewMemoryControlGroup(cgroupPath string, memKB int64) *MemoryControlGroup {
+	return &MemoryControlGroup{memKB, cgroupPath}
 }
 
 func (c *MemoryControlGroup) Set() error {
-	if c.MemoryKB != 0 {
-		memoryMaxPath := filepath.Join(c.cgroupPath, "memory.max")
-		if err := writeToFile(memoryMaxPath,
-			strconv.FormatInt(c.MemoryKB*1024, 10)); err != nil {
+	if c.memKB != 0 {
+		target := filepath.Join(c.cgroupPath, "memory.max")
+		if err := writeToFile(target,
+			strconv.FormatInt(c.memKB*1024, 10)); err != nil {
+			return err
+		}
+		target = filepath.Join(c.cgroupPath, "cgroup.subtree_control")
+		if err := writeToFile(target, "+memory"); err != nil {
 			return err
 		}
 	}

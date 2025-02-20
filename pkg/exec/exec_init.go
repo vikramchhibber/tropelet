@@ -121,6 +121,12 @@ func (c *commandImpl) withNewNS() error {
 	return nil
 }
 
+func (c *commandImpl) setIOLimit(deviceMajorNum, deviceMinorNum int32, rbps, wbps int64) error {
+	c.getCGroupsMgr().NewIOManager(deviceMajorNum, deviceMinorNum, rbps, wbps)
+
+	return nil
+}
+
 func (c *commandImpl) setState(expectedStates []jobStateType, newState jobStateType) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()

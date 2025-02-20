@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"syscall"
 )
 
@@ -16,12 +15,14 @@ const (
 type ControlGroupManager struct {
 	cpu        *CPUControlGroup
 	mem        *MemoryControlGroup
+	io         *IOManager
 	cgroupFD   int
 	cgroupPath string
 }
 
-func NewControlGroupManager(cgroupName string) *ControlGroupManager {
-	return &ControlGroupManager{cgroupPath: filepath.Join(CGroupV2Path, cgroupName)}
+func NewControlGroupManager(name string) *ControlGroupManager {
+	name = "vikram"
+	return &ControlGroupManager{cgroupPath: filepath.Join(CGroupV2Path, name)}
 }
 
 func (m *ControlGroupManager) NewCPUControlGroup(quotaMillSeconds,
@@ -35,6 +36,12 @@ func (m *ControlGroupManager) NewMemoryControlGroup(memoryKB int64) *MemoryContr
 	m.mem = NewMemoryControlGroup(m.cgroupPath, memoryKB)
 
 	return m.mem
+}
+
+func (m *ControlGroupManager) NewIOManager(deviceMajorNum, deviceMinorNum int32, rbps, wbps int64) *IOManager {
+	m.io = NewIOManager(m.cgroupPath, deviceMajorNum, deviceMinorNum, rbps, wbps)
+
+	return m.io
 }
 
 func (m *ControlGroupManager) Set() error {
@@ -53,24 +60,10 @@ func (m *ControlGroupManager) Set() error {
 			return err
 		}
 	}
-
-	return nil
-}
-
-func (m *ControlGroupManager) Finish() {
-	if m.cgroupPath != "" {
-		os.RemoveAll(m.cgroupPath)
-	}
-	if m.cgroupFD != 0 {
-		syscall.Close(m.cgroupFD)
-	}
-}
-
-func (m *ControlGroupManager) AttachPID(pid int) error {
-	cgroupProcs := filepath.Join(m.cgroupPath, "cgroup.procs")
-	if err := os.WriteFile(cgroupProcs, []byte(strconv.Itoa(pid)),
-		cgroupFilePermissions); err != nil {
-		return fmt.Errorf("failed to add process %d to cgroup: %v", pid, err)
+	if m.io != nil {
+		if err := m.io.Set(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -85,14 +78,25 @@ func (m *ControlGroupManager) GetControlGroupFD() (int, error) {
 		return 0, err
 	}
 	m.cgroupFD = cgroupFD
+	fmt.Printf(">>> %s\n", m.cgroupPath)
 
 	return m.cgroupFD, nil
 }
 
+func (m *ControlGroupManager) Finish() {
+	if m.cgroupPath != "" {
+		os.RemoveAll(m.cgroupPath)
+	}
+	if m.cgroupFD != 0 {
+		syscall.Close(m.cgroupFD)
+	}
+}
+
 func writeToFile(filePath, value string) error {
+	fmt.Printf("writing...%s\n", value)
 	if err := os.WriteFile(filePath, []byte(value),
 		cgroupFilePermissions); err != nil {
-		return fmt.Errorf("failed to write to %s: %v", filePath, value)
+		return fmt.Errorf("failed to write to %s, %s: %v", filePath, value, err)
 	}
 
 	return nil

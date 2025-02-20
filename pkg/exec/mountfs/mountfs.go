@@ -23,6 +23,7 @@ var fsInfo = []struct {
 	{"/bin", "bin", "", syscall.MS_BIND | syscall.MS_RDONLY, 500},
 	{"/lib64", "lib64", "", syscall.MS_BIND | syscall.MS_RDONLY, 500},
 	{"proc", "proc", "proc", 0, 600},
+	{"/dev/zero", "dev/zero", "", syscall.MS_REMOUNT, 600},
 	{"", cgroups.CGroupV2Path, "cgroup2", 0, 500},
 }
 
@@ -50,6 +51,12 @@ func (m *MountFSManager) Mount() error {
 		if err := syscall.Mount(d.source, target, d.fstype, d.flags, ""); err != nil {
 			return fmt.Errorf("failed to mount %s: %v", target, err)
 		}
+	}
+
+	// Create /dev directory in new root if it doesn't exist
+	devPath := filepath.Join(m.mountRoot, "dev")
+	if err := os.MkdirAll(devPath, 0755); err != nil {
+		return fmt.Errorf("failed to create /dev: %v", err)
 	}
 
 	return nil
