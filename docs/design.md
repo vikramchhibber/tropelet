@@ -42,6 +42,11 @@ memory.max: 268435456 (256MB)
 io.max = 1048576 wbps and 4 * 4194304 rbps
 ```
 The server will use new root directory if provided or current running directory mount to get major and minor number of the block device for setting **io.max** limits.
+The job-id will be part of cgroup path to uniquely identity it. "cpu.max", "memory.max" and "io.max" will be created under it.
+```
+// Example
+/sys/fs/cgroup/4bf02371-5cc5-47f8-a7bf-c891e38bea3e
+```
 
 ## Authorization
 1. The server will enforce a policy limiting concurrent jobs per client. The default limit will be two, configurable per client."
@@ -134,4 +139,3 @@ ba7371d5-a848-4b5d-b90a-7479342051a4 terminated foo-bar [not found]
 # gRPC
 1. The service proto definition: https://github.com/vikramchhibber/tropelet/tree/design_doc/proto
 2. The server will indicate to the client whether a stream message comes from standard error or standard output. The client can use this information to handle error messages differently, for example by rendering them in red."
-
