@@ -49,8 +49,8 @@ The job-id will be part of cgroup path to uniquely identity it. "cpu.max", "memo
 ```
 
 ## Authorization
-1. The server will enforce a policy limiting concurrent jobs per client. The default limit will be two, configurable per client.
-2. The server will enforce a policy limiting job submissions per client per minute. The default will be five, configurable per client.
+1. The server will ensure that clients with different identities cannot stream output from jobs initiated by others.
+2. The server will enforce a policy limiting concurrent jobs per client. The default limit will be two, configurable per client.
 
 
 # Exec library
@@ -62,7 +62,9 @@ The job-id will be part of cgroup path to uniquely identity it. "cpu.max", "memo
 ```
 /usr/lib
 /usr/bin
+/usr/sbin
 /lib
+/bin
 /lib64
 proc
 cgroup2.
@@ -102,7 +104,7 @@ func NewCommand(name string, args []string, options ...CommandOption) (Command, 
 
 New command init: This includes validate passed arguments, create c-groups hierarchy, and prepare new root by mounting needed directories.
 
-Execute command: This includes creating command context, creating stdout/stderr go routines, start the command, get the PID and attach to the cgroups, and wait for the process to exit.
+Execute command: This includes creating command context, initializing **SysProcAttr.CgroupFD** with cgroups FS, creating stdout/stderr go routines, start the command, and wait for the process to exit.
 
 Finish: This includes umount, cgroups hierarchy cleanup, wait on go routines exit and closing stdout/stderr channels.
 
