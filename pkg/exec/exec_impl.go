@@ -76,8 +76,6 @@ func (c *commandImpl) Finish() {
 			if err := syscall.Kill(-pgid, syscall.SIGKILL); err != nil {
 				fmt.Printf("failed to send SIGKILL to process group: %v", err)
 			}
-		} else {
-			fmt.Printf("group pid not found\n")
 		}
 	}
 
@@ -126,33 +124,34 @@ func (c *commandImpl) execute() error {
 
 	c.cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
-		Pgid:    0,
-		Cloneflags: syscall.CLONE_NEWPID | // New PID namespace
-			syscall.CLONE_NEWNET | // New network namespace
-			syscall.CLONE_NEWNS, // New mount namespace (needed for /proc)
-		//		Cloneflags: syscall.CLONE_NEWNET,
-		Unshareflags: syscall.CLONE_NEWNS, // Make sure mount changes are private
+		Cloneflags: syscall.CLONE_NEWPID | syscall.CLONE_NEWNET |
+			syscall.CLONE_NEWNS | syscall.CLONE_INTO_CGROUP,
+		Unshareflags: syscall.CLONE_NEWNS | syscall.CLONE_NEWNET,
 	}
 	if c.mountFSMgr != nil {
 		c.cmd.SysProcAttr.Chroot = c.mountFSMgr.GetMountRoot()
 		c.cmd.Dir = "/"
+		// This is needed for PID isolation
+		c.mountFSMgr.MountPrivateProc()
+	}
+
+	// Attach the launched process PID
+	if c.cgroupsMgr != nil {
+		var err error
+		if c.cmd.SysProcAttr.CgroupFD, err =
+			c.cgroupsMgr.GetControlGroupFD(); err != nil {
+			return err
+		}
 	}
 
 	// Execute command
 	if err := c.cmd.Start(); err != nil {
 		return err
 	}
-
 	if c.netMgr != nil {
 		if err := c.netMgr.AttachLocalIntf(c.cmd.Process.Pid); err != nil {
-			return err
-		}
-	}
-
-	// Attach the launched process PID
-	if c.cgroupsMgr != nil {
-		if err := c.cgroupsMgr.AttachPID(c.cmd.Process.Pid); err != nil {
-			return err
+			fmt.Printf("error: %v", err)
+			//				return err
 		}
 	}
 

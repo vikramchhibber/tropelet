@@ -9,20 +9,26 @@ import (
 	"github.com/troplet/pkg/exec/cgroups"
 )
 
-var mountData = []struct {
+type mountFSInfo struct {
 	source       string
 	targetPrefix string
 	fstype       string
 	flags        uintptr
 	permissions  os.FileMode
-}{
+}
+
+var procFSInfo = &mountFSInfo{
+	"proc", "proc", "proc", 0, 600,
+}
+
+var fsInfo = []*mountFSInfo{
 	{"/usr/bin", "usr/bin", "", syscall.MS_BIND | syscall.MS_RDONLY, 500},
 	{"/usr/lib", "usr/lib", "", syscall.MS_BIND | syscall.MS_RDONLY, 500},
 	{"/usr/sbin", "usr/sbin", "", syscall.MS_BIND | syscall.MS_RDONLY, 500},
 	{"/lib", "lib", "", syscall.MS_BIND | syscall.MS_RDONLY, 500},
 	{"/bin", "bin", "", syscall.MS_BIND | syscall.MS_RDONLY, 500},
 	{"/lib64", "lib64", "", syscall.MS_BIND | syscall.MS_RDONLY, 500},
-	{"proc", "proc", "proc", 0, 600},
+	procFSInfo,
 	{"", cgroups.CGroupV2Path, "cgroup2", 0, 500},
 }
 
@@ -39,10 +45,18 @@ func (m *MountFSManager) GetMountRoot() string {
 }
 
 func (m *MountFSManager) Mount() error {
+	return m.mount(fsInfo)
+}
+
+func (m *MountFSManager) MountPrivateProc() error {
+	return m.mount([]*mountFSInfo{procFSInfo})
+}
+
+func (m *MountFSManager) mount(info []*mountFSInfo) error {
 	if m.mountRoot == "" {
 		return nil
 	}
-	for _, d := range mountData {
+	for _, d := range info {
 		target := filepath.Join(m.mountRoot, d.targetPrefix)
 		if err := os.MkdirAll(target, d.permissions); err != nil {
 			return fmt.Errorf("failed to create %s: %v", target, err)
@@ -59,8 +73,16 @@ func (m *MountFSManager) Finish() {
 	if m.mountRoot == "" {
 		return
 	}
-	for i := len(mountData) - 1; i >= 0; i-- {
-		target := filepath.Join(m.mountRoot, mountData[i].targetPrefix)
+
+	// Umount private proc
+	target := filepath.Join(m.mountRoot, procFSInfo.targetPrefix)
+	if err := syscall.Unmount(target, 0); err != nil {
+		fmt.Printf("failed unmounting 2 %s\n", target)
+		// TODO: Log error and continue
+	}
+
+	for i := len(fsInfo) - 1; i >= 0; i-- {
+		target := filepath.Join(m.mountRoot, fsInfo[i].targetPrefix)
 		if err := syscall.Unmount(target, 0); err != nil {
 			fmt.Printf("failed unmounting %s\n", target)
 			// TODO: Log error and continue
@@ -70,6 +92,7 @@ func (m *MountFSManager) Finish() {
 			// TODO: Log error and continue
 		}
 	}
+
 	// Special handling for these directories as they are nested
 	for _, d := range []string{"sys", "usr"} {
 		target := filepath.Join(m.mountRoot, d)

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"syscall"
 )
 
 const (
@@ -13,9 +14,9 @@ const (
 )
 
 type ControlGroupManager struct {
-	cpu *CPUControlGroup
-	mem *MemoryControlGroup
-
+	cpu        *CPUControlGroup
+	mem        *MemoryControlGroup
+	cgroupFD   int
 	cgroupPath string
 }
 
@@ -60,6 +61,9 @@ func (m *ControlGroupManager) Finish() {
 	if m.cgroupPath != "" {
 		os.RemoveAll(m.cgroupPath)
 	}
+	if m.cgroupFD != 0 {
+		syscall.Close(m.cgroupFD)
+	}
 }
 
 func (m *ControlGroupManager) AttachPID(pid int) error {
@@ -70,6 +74,19 @@ func (m *ControlGroupManager) AttachPID(pid int) error {
 	}
 
 	return nil
+}
+
+func (m *ControlGroupManager) GetControlGroupFD() (int, error) {
+	if m.cgroupFD != 0 {
+		return m.cgroupFD, nil
+	}
+	cgroupFD, err := syscall.Open(m.cgroupPath, syscall.O_RDONLY, 0)
+	if err != nil {
+		return 0, err
+	}
+	m.cgroupFD = cgroupFD
+
+	return m.cgroupFD, nil
 }
 
 func writeToFile(filePath, value string) error {

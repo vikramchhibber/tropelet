@@ -37,14 +37,17 @@ func main() {
 	if len(os.Args) == 2 {
 		cmd, err = exec.NewCommand(os.Args[1], []string{},
 			exec.WithStdoutChan(stdoutChan), exec.WithStderrChan(stderrChan),
-			exec.WithNewRoot("./newroot9"), exec.WithCPULimit(100, 1000))
+			exec.WithNewRoot("./newroot9"), exec.WithCPULimit(100, 1000),
+			exec.WithNewNS())
 	} else if len(os.Args) > 2 {
 		cmd, err = exec.NewCommand(os.Args[1], os.Args[2:],
 			exec.WithStdoutChan(stdoutChan), exec.WithStderrChan(stderrChan),
-			exec.WithNewRoot("./newroot9"), exec.WithCPULimit(100, 1000))
+			exec.WithNewRoot("./newroot9"), exec.WithCPULimit(100, 1000),
+			exec.WithNewNS())
 	}
 	if err != nil {
 		fmt.Printf("error in cmd creation: %v", err.Error())
+		return
 	}
 	fmt.Printf("Command id: %s\n", cmd.GetID())
 	shared.RegisterShutdownSigCallback(func() {
