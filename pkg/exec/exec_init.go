@@ -11,7 +11,6 @@ import (
 
 	"github.com/troplet/pkg/exec/cgroups"
 	"github.com/troplet/pkg/exec/mountfs"
-	"github.com/troplet/pkg/exec/net"
 )
 
 type jobStateType string
@@ -31,9 +30,8 @@ type commandImpl struct {
 	stdoutChan ReadChannel
 	stderrChan ReadChannel
 	timeout    time.Duration
-	cgroupsMgr *cgroups.ControlGroupManager
+	cgroupsMgr *cgroups.ControlGroupsManager
 	mountFSMgr *mountfs.MountFSManager
-	netMgr     *net.NetworkManager
 	cmd        *exec.Cmd
 	waitGroup  sync.WaitGroup
 	err        error
@@ -57,21 +55,18 @@ func newCommand(name string, args []string, options ...CommandOption) (Command, 
 			execCmd.Finish()
 		}
 	}()
-
 	// Read passed options
 	for _, option := range options {
 		if err = option(execCmd); err != nil {
 			return nil, err
 		}
 	}
-
 	// Set cgroup values
 	if execCmd.cgroupsMgr != nil {
 		if err = execCmd.cgroupsMgr.Set(); err != nil {
 			return nil, err
 		}
 	}
-
 	// Prepare filesystem under new root
 	if execCmd.mountFSMgr != nil {
 		if err = execCmd.mountFSMgr.Mount(); err != nil {
@@ -116,7 +111,6 @@ func (c *commandImpl) withNewRoot(newRoot string) error {
 }
 
 func (c *commandImpl) withNewNS() error {
-	c.netMgr = net.NewNetworkManager()
 
 	return nil
 }
@@ -138,9 +132,9 @@ func (c *commandImpl) setState(expectedStates []jobStateType, newState jobStateT
 	return nil
 }
 
-func (c *commandImpl) getCGroupsMgr() *cgroups.ControlGroupManager {
+func (c *commandImpl) getCGroupsMgr() *cgroups.ControlGroupsManager {
 	if c.cgroupsMgr == nil {
-		c.cgroupsMgr = cgroups.NewControlGroupManager(c.id)
+		c.cgroupsMgr = cgroups.NewControlGroupsManager(c.id)
 	}
 
 	return c.cgroupsMgr

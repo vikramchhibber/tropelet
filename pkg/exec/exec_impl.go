@@ -88,9 +88,6 @@ func (c *commandImpl) Finish() {
 	if c.stderrChan != nil {
 		close(c.stderrChan)
 	}
-	if c.netMgr != nil {
-		c.netMgr.Finish()
-	}
 	if c.cgroupsMgr != nil {
 		c.cgroupsMgr.Finish()
 	}
@@ -144,12 +141,6 @@ func (c *commandImpl) execute() error {
 	// Execute command
 	if err := c.cmd.Start(); err != nil {
 		return err
-	}
-	if c.netMgr != nil {
-		if err := c.netMgr.AttachLocalIntf(c.cmd.Process.Pid); err != nil {
-			fmt.Printf("error: %v", err)
-			//				return err
-		}
 	}
 
 	// Wait for the process to terminate

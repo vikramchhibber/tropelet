@@ -12,7 +12,7 @@ const (
 	cgroupFilePermissions = 0644
 )
 
-type ControlGroupManager struct {
+type ControlGroupsManager struct {
 	cpu        *CPUControlGroup
 	mem        *MemoryControlGroup
 	io         *IOManager
@@ -20,31 +20,30 @@ type ControlGroupManager struct {
 	cgroupPath string
 }
 
-func NewControlGroupManager(name string) *ControlGroupManager {
-	name = "vikram"
-	return &ControlGroupManager{cgroupPath: filepath.Join(CGroupV2Path, name)}
+func NewControlGroupsManager(name string) *ControlGroupsManager {
+	return &ControlGroupsManager{cgroupPath: filepath.Join(CGroupV2Path, name)}
 }
 
-func (m *ControlGroupManager) NewCPUControlGroup(quotaMillSeconds,
+func (m *ControlGroupsManager) NewCPUControlGroup(quotaMillSeconds,
 	periodMillSeconds int64) *CPUControlGroup {
 	m.cpu = NewCPUControlGroup(m.cgroupPath, quotaMillSeconds, periodMillSeconds)
 
 	return m.cpu
 }
 
-func (m *ControlGroupManager) NewMemoryControlGroup(memoryKB int64) *MemoryControlGroup {
+func (m *ControlGroupsManager) NewMemoryControlGroup(memoryKB int64) *MemoryControlGroup {
 	m.mem = NewMemoryControlGroup(m.cgroupPath, memoryKB)
 
 	return m.mem
 }
 
-func (m *ControlGroupManager) NewIOManager(deviceMajorNum, deviceMinorNum int32, rbps, wbps int64) *IOManager {
+func (m *ControlGroupsManager) NewIOManager(deviceMajorNum, deviceMinorNum int32, rbps, wbps int64) *IOManager {
 	m.io = NewIOManager(m.cgroupPath, deviceMajorNum, deviceMinorNum, rbps, wbps)
 
 	return m.io
 }
 
-func (m *ControlGroupManager) Set() error {
+func (m *ControlGroupsManager) Set() error {
 	if err := os.Mkdir(m.cgroupPath, 0755); err != nil {
 		return fmt.Errorf("failed to create cgroup path %s: %v",
 			m.cgroupPath, err)
@@ -69,7 +68,7 @@ func (m *ControlGroupManager) Set() error {
 	return nil
 }
 
-func (m *ControlGroupManager) GetControlGroupFD() (int, error) {
+func (m *ControlGroupsManager) GetControlGroupFD() (int, error) {
 	if m.cgroupFD != 0 {
 		return m.cgroupFD, nil
 	}
@@ -78,12 +77,11 @@ func (m *ControlGroupManager) GetControlGroupFD() (int, error) {
 		return 0, err
 	}
 	m.cgroupFD = cgroupFD
-	fmt.Printf(">>> %s\n", m.cgroupPath)
 
 	return m.cgroupFD, nil
 }
 
-func (m *ControlGroupManager) Finish() {
+func (m *ControlGroupsManager) Finish() {
 	if m.cgroupPath != "" {
 		os.RemoveAll(m.cgroupPath)
 	}
@@ -93,7 +91,6 @@ func (m *ControlGroupManager) Finish() {
 }
 
 func writeToFile(filePath, value string) error {
-	fmt.Printf("writing...%s\n", value)
 	if err := os.WriteFile(filePath, []byte(value),
 		cgroupFilePermissions); err != nil {
 		return fmt.Errorf("failed to write to %s, %s: %v", filePath, value, err)

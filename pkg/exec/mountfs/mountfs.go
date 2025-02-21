@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/troplet/pkg/exec/cgroups"
@@ -23,16 +24,16 @@ var fsInfo = []struct {
 	{"/bin", "bin", "", syscall.MS_BIND | syscall.MS_RDONLY, 500},
 	{"/lib64", "lib64", "", syscall.MS_BIND | syscall.MS_RDONLY, 500},
 	{"proc", "proc", "proc", 0, 600},
-	{"/dev/zero", "dev/zero", "", syscall.MS_REMOUNT, 600},
 	{"", cgroups.CGroupV2Path, "cgroup2", 0, 500},
 }
 
 type MountFSManager struct {
-	mountRoot string
+	mountRoot       string
+	mountedPrefixes []string
 }
 
 func NewMountFSManager(mountRoot string) *MountFSManager {
-	return &MountFSManager{mountRoot}
+	return &MountFSManager{mountRoot, []string{}}
 }
 
 func (m *MountFSManager) GetMountRoot() string {
@@ -43,6 +44,18 @@ func (m *MountFSManager) Mount() error {
 	if m.mountRoot == "" {
 		return nil
 	}
+
+	absPath, err := filepath.Abs(m.mountRoot)
+	if err != nil {
+		return err
+	}
+	// Lets make sure that the prefix is user's home directory
+	// for safety reasons
+	if !strings.HasPrefix(absPath, "/home") {
+		return fmt.Errorf("mount directory provided must be anywhere under user's home")
+	}
+	m.mountRoot = absPath
+
 	for _, d := range fsInfo {
 		target := filepath.Join(m.mountRoot, d.targetPrefix)
 		if err := os.MkdirAll(target, d.permissions); err != nil {
@@ -51,12 +64,7 @@ func (m *MountFSManager) Mount() error {
 		if err := syscall.Mount(d.source, target, d.fstype, d.flags, ""); err != nil {
 			return fmt.Errorf("failed to mount %s: %v", target, err)
 		}
-	}
-
-	// Create /dev directory in new root if it doesn't exist
-	devPath := filepath.Join(m.mountRoot, "dev")
-	if err := os.MkdirAll(devPath, 0755); err != nil {
-		return fmt.Errorf("failed to create /dev: %v", err)
+		m.mountedPrefixes = append(m.mountedPrefixes, d.targetPrefix)
 	}
 
 	return nil
@@ -67,22 +75,14 @@ func (m *MountFSManager) Finish() {
 		return
 	}
 
-	for i := len(fsInfo) - 1; i >= 0; i-- {
-		target := filepath.Join(m.mountRoot, fsInfo[i].targetPrefix)
+	// Unmount only the directories that were mounted
+	for i := len(m.mountedPrefixes) - 1; i >= 0; i-- {
+		target := filepath.Join(m.mountRoot, m.mountedPrefixes[i])
 		if err := syscall.Unmount(target, 0); err != nil {
 			fmt.Printf("failed unmounting %s\n", target)
 			// TODO: Log error and continue
 		}
 		if err := os.Remove(target); err != nil {
-			fmt.Printf("failed deleting %s\n", target)
-			// TODO: Log error and continue
-		}
-	}
-
-	// Special handling for these directories as they are nested
-	for _, d := range []string{"sys", "usr"} {
-		target := filepath.Join(m.mountRoot, d)
-		if err := os.RemoveAll(target); err != nil {
 			fmt.Printf("failed deleting %s\n", target)
 			// TODO: Log error and continue
 		}

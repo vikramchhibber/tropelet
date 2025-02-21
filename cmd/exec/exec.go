@@ -39,13 +39,13 @@ func main() {
 			exec.WithStdoutChan(stdoutChan), exec.WithStderrChan(stderrChan),
 			exec.WithNewRoot("./newroot9"), exec.WithCPULimit(1, 1000),
 			exec.WithNewNS(), exec.WithMemoryLimit(1024),
-			exec.WithIOLimit(8, 2, 4*1024, 1024))
+			exec.WithIOLimit(252, 0, 4*1024, 1024))
 	} else if len(os.Args) > 2 {
 		cmd, err = exec.NewCommand(os.Args[1], os.Args[2:],
 			exec.WithStdoutChan(stdoutChan), exec.WithStderrChan(stderrChan),
 			exec.WithNewRoot("./newroot9"), exec.WithCPULimit(1, 1000),
 			exec.WithNewNS(), exec.WithMemoryLimit(1024),
-			exec.WithIOLimit(8, 2, 4*1024, 1024))
+			exec.WithIOLimit(252, 0, 4*1024, 1024))
 	}
 	if err != nil {
 		fmt.Printf("error in cmd creation: %v", err.Error())
