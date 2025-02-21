@@ -1,7 +1,9 @@
 package mountfs
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,12 +28,13 @@ var fsInfo = []struct {
 }
 
 type MountFSManager struct {
-	mountRoot       string
-	mountedPrefixes []string
+	mountRoot               string
+	mountRootAlreadyCreated bool
+	mountedPrefixes         []string
 }
 
 func NewMountFSManager(mountRoot string) *MountFSManager {
-	return &MountFSManager{mountRoot, []string{}}
+	return &MountFSManager{mountRoot, false, []string{}}
 }
 
 func (m *MountFSManager) GetMountRoot() string {
@@ -47,21 +50,30 @@ func (m *MountFSManager) Mount() error {
 	if err != nil {
 		return err
 	}
-	// Lets make sure that the prefix is user's home directory
+	// Lets make sure that the prefix is some home directory
 	// for safety reasons
 	if !strings.HasPrefix(absPath, "/home") {
 		return fmt.Errorf("mount directory provided must be anywhere under user's home")
 	}
-	m.mountRoot = absPath
 
+	// We expect this path should not exist and we will create it. We will
+	// remember this so that we can delete this as part of cleanup
+	mountRootAlreadyCreated, err := m.exists(absPath)
+	if err != nil {
+		return fmt.Errorf("failed to check mount-root %s: [%w]", absPath, err)
+	}
+
+	m.mountRoot = absPath
+	m.mountRootAlreadyCreated = mountRootAlreadyCreated
 	for _, d := range fsInfo {
 		target := filepath.Join(m.mountRoot, d.targetPrefix)
 		if err := os.MkdirAll(target, d.permissions); err != nil {
-			return fmt.Errorf("failed to create %s: %v", target, err)
+			return fmt.Errorf("failed to create %s: [%w]", target, err)
 		}
 		if err := syscall.Mount(d.source, target, d.fstype, d.flags, ""); err != nil {
-			return fmt.Errorf("failed to mount %s: %v", target, err)
+			return fmt.Errorf("failed to mount %s: [%w]", target, err)
 		}
+		// Remember what got mounted
 		m.mountedPrefixes = append(m.mountedPrefixes, d.targetPrefix)
 	}
 
@@ -80,11 +92,23 @@ func (m *MountFSManager) Finish() {
 			fmt.Printf("failed unmounting %s\n", target)
 			// TODO: Log error and continue
 		}
-		if err := os.Remove(target); err != nil {
-			fmt.Printf("failed deleting %s\n", target)
+	}
+	if !m.mountRootAlreadyCreated {
+		if err := os.RemoveAll(m.mountRoot); err != nil {
+			fmt.Printf("failed deleting %s\n", m.mountRoot)
 			// TODO: Log error and continue
 		}
 	}
+}
 
-	return
+func (m *MountFSManager) exists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+
+	return false, err
 }

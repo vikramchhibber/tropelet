@@ -1,11 +1,11 @@
 package exec
 
 import (
-	"errors"
+	"fmt"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"sync"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -13,14 +13,15 @@ import (
 	"github.com/troplet/pkg/exec/mountfs"
 )
 
-type jobStateType string
+// These are internal library states and may not directly
+// correspond to the command's lifecycle states.
+type cmdStateType string
 
 const (
-	jobStateUnknown    jobStateType = "unknown"
-	jobStateInit                    = "init"
-	jobStateRunning                 = "running"
-	jobStateTerminated              = "terminated"
-	jobStateFinished                = "finished"
+	cmdStateInit       cmdStateType = "init"
+	cmdStateRunning                 = "running"
+	cmdStateTerminated              = "terminated"
+	cmdStateFinished                = "finished"
 )
 
 type commandImpl struct {
@@ -29,14 +30,18 @@ type commandImpl struct {
 	args       []string
 	stdoutChan ReadChannel
 	stderrChan ReadChannel
-	timeout    time.Duration
 	cgroupsMgr *cgroups.ControlGroupsManager
 	mountFSMgr *mountfs.MountFSManager
+	newNetNS   bool
+	newPidNS   bool
 	cmd        *exec.Cmd
 	waitGroup  sync.WaitGroup
 	err        error
-	lock       sync.Mutex
-	jobState   jobStateType
+
+	// This lock is meant to protect cmdState
+	// comparison and transition
+	lock     sync.Mutex
+	cmdState cmdStateType
 }
 
 func newCommand(name string, args []string, options ...CommandOption) (Command, error) {
@@ -47,7 +52,7 @@ func newCommand(name string, args []string, options ...CommandOption) (Command, 
 
 	// Initialize defaults and mandatory params
 	execCmd := &commandImpl{id: id, name: name, args: args,
-		timeout: 10 * time.Minute, jobState: jobStateInit}
+		cmdState: cmdStateInit}
 
 	// Cleanup of incomplete initialization
 	defer func() {
@@ -62,9 +67,7 @@ func newCommand(name string, args []string, options ...CommandOption) (Command, 
 
 	// Read passed options
 	for _, option := range options {
-		if err = option(execCmd); err != nil {
-			return nil, err
-		}
+		option(execCmd)
 	}
 	// Set cgroup values
 	if execCmd.cgroupsMgr != nil {
@@ -82,57 +85,48 @@ func newCommand(name string, args []string, options ...CommandOption) (Command, 
 	return execCmd, nil
 }
 
-func (c *commandImpl) setCPULimit(quotaMillSeconds, periodMillSeconds int64) error {
+func (c *commandImpl) setCPULimit(quotaMillSeconds, periodMillSeconds int64) {
 	c.cgroupsMgr.NewCPUControlGroup(quotaMillSeconds, periodMillSeconds)
-
-	return nil
 }
 
-func (c *commandImpl) setMemoryLimit(memKB int64) error {
+func (c *commandImpl) setMemoryLimit(memKB int64) {
 	c.cgroupsMgr.NewMemoryControlGroup(memKB)
-
-	return nil
 }
 
-func (c *commandImpl) withTimeout(timeout time.Duration) error {
-	c.timeout = timeout
-	return nil
-}
-
-func (c *commandImpl) withStdoutChan(stdoutChan ReadChannel) error {
+func (c *commandImpl) setStdoutChan(stdoutChan ReadChannel) {
 	c.stdoutChan = stdoutChan
-	return nil
 }
 
-func (c *commandImpl) withStderrChan(stderrChan ReadChannel) error {
+func (c *commandImpl) setStderrChan(stderrChan ReadChannel) {
 	c.stderrChan = stderrChan
-	return nil
 }
 
-func (c *commandImpl) withNewRoot(newRoot string) error {
-	c.mountFSMgr = mountfs.NewMountFSManager(newRoot)
-
-	return nil
+func (c *commandImpl) setNewRootBase(newRootBase string) {
+	// The new root for each process will be created under the root base
+	// concatenated with a unique command ID, ensuring that multiple
+	// commands do not share the same root.
+	c.mountFSMgr = mountfs.NewMountFSManager(filepath.Join(newRootBase, c.id))
 }
 
-func (c *commandImpl) withNewNS() error {
-
-	return nil
+func (c *commandImpl) setNewNetNS() {
+	c.newNetNS = true
 }
 
-func (c *commandImpl) setIOLimit(deviceMajorNum, deviceMinorNum int32, rbps, wbps int64) error {
-	c.cgroupsMgr.NewIOManager(deviceMajorNum, deviceMinorNum, rbps, wbps)
-
-	return nil
+func (c *commandImpl) setNewPidNS() {
+	c.newPidNS = true
 }
 
-func (c *commandImpl) setState(expectedStates []jobStateType, newState jobStateType) error {
+func (c *commandImpl) setIOLimits(deviceMajorNum, deviceMinorNum int32, rbps, wbps int64) {
+	c.cgroupsMgr.NewIOControlGroup(deviceMajorNum, deviceMinorNum, rbps, wbps)
+}
+
+func (c *commandImpl) setState(expectedStates []cmdStateType, newState cmdStateType) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	if !slices.Contains(expectedStates, c.jobState) {
-		return errors.New("invalid current state " + string(c.jobState))
+	if !slices.Contains(expectedStates, c.cmdState) {
+		return fmt.Errorf("invalid current state " + string(c.cmdState))
 	}
-	c.jobState = newState
+	c.cmdState = newState
 
 	return nil
 }

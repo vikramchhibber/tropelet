@@ -1,71 +1,72 @@
 package exec
 
 import (
-	"time"
+	"context"
 )
 
 type Command interface {
 	GetID() string
-	Execute() error
+	String() string
+	Execute(ctx context.Context) error
 	IsTerminated() bool
 	GetExitError() error
 	GetExitCode() int
-	SendTermSignal() error
+	SendTermSignal()
 	Finish()
 }
 
 type ReadChannel chan []byte
 
-type CommandOption func(*commandImpl) error
+type CommandOption func(*commandImpl)
 
 func NewCommand(name string, args []string, options ...CommandOption) (Command, error) {
 	return newCommand(name, args, options...)
 }
 
-func WithTimeout(timeout time.Duration) CommandOption {
-	return func(c *commandImpl) error {
-		return c.withTimeout(timeout)
-	}
-}
-
 func WithStdoutChan(stdoutChan ReadChannel) CommandOption {
-	return func(c *commandImpl) error {
-		return c.withStdoutChan(stdoutChan)
+	return func(c *commandImpl) {
+		c.setStdoutChan(stdoutChan)
 	}
 }
 
 func WithStderrChan(stderrChan ReadChannel) CommandOption {
-	return func(c *commandImpl) error {
-		return c.withStderrChan(stderrChan)
+	return func(c *commandImpl) {
+		c.setStderrChan(stderrChan)
 	}
 }
 
 func WithCPULimit(quotaMillSeconds, periodMillSeconds int64) CommandOption {
-	return func(c *commandImpl) error {
-		return c.setCPULimit(quotaMillSeconds, periodMillSeconds)
+	return func(c *commandImpl) {
+		c.setCPULimit(quotaMillSeconds, periodMillSeconds)
 	}
 }
 
 func WithMemoryLimit(memKB int64) CommandOption {
-	return func(c *commandImpl) error {
-		return c.setMemoryLimit(memKB)
+	return func(c *commandImpl) {
+		c.setMemoryLimit(memKB)
 	}
 }
 
-func WithIOLimit(deviceMajorNum, deviceMinorNum int32, rbps, wbps int64) CommandOption {
-	return func(c *commandImpl) error {
-		return c.setIOLimit(deviceMajorNum, deviceMinorNum, rbps, wbps)
+func WithIOLimits(deviceMajorNum, deviceMinorNum int32, rbps, wbps int64) CommandOption {
+	return func(c *commandImpl) {
+		c.setIOLimits(deviceMajorNum, deviceMinorNum, rbps, wbps)
 	}
 }
 
-func WithNewRoot(newRoot string) CommandOption {
-	return func(c *commandImpl) error {
-		return c.withNewRoot(newRoot)
+func WithNewRootBase(newRootBase string) CommandOption {
+	return func(c *commandImpl) {
+		c.setNewRootBase(newRootBase)
 	}
 }
 
-func WithNewNS() CommandOption {
-	return func(c *commandImpl) error {
-		return c.withNewNS()
+func WithNewNetNS() CommandOption {
+	return func(c *commandImpl) {
+		c.setNewNetNS()
+	}
+}
+
+func WithNewPidNS() CommandOption {
+	return func(c *commandImpl) {
+		c.setNewPidNS()
 	}
 }

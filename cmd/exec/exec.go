@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,7 +15,7 @@ import (
 )
 
 func main() {
-	path, err := GetFilesystemMount("./newroot9")
+	path, err := GetFilesystemMount("./")
 	if err != nil {
 		return
 	}
@@ -55,27 +56,24 @@ func main() {
 	if len(os.Args) == 2 {
 		cmd, err = exec.NewCommand(os.Args[1], []string{},
 			exec.WithStdoutChan(stdoutChan), exec.WithStderrChan(stderrChan),
-			exec.WithNewRoot("./newroot9"), exec.WithCPULimit(1, 100),
-			exec.WithNewNS(), exec.WithMemoryLimit(4*1024),
-			exec.WithIOLimit(major, minor, 4*1024, 1024))
+			exec.WithNewRootBase("./"), exec.WithCPULimit(100, 1000),
+			exec.WithNewPidNS(), exec.WithNewNetNS(), exec.WithMemoryLimit(4*1024),
+			exec.WithIOLimits(major, minor, 4*1024, 1024))
 	} else if len(os.Args) > 2 {
 		cmd, err = exec.NewCommand(os.Args[1], os.Args[2:],
 			exec.WithStdoutChan(stdoutChan), exec.WithStderrChan(stderrChan),
-			exec.WithNewRoot("./newroot9"), exec.WithCPULimit(1, 100),
-			exec.WithNewNS(), exec.WithMemoryLimit(4*1024),
-			exec.WithIOLimit(major, minor, 4*1024, 1024))
+			exec.WithNewRootBase("./"), exec.WithCPULimit(100, 1000),
+			exec.WithNewPidNS(), exec.WithNewNetNS(), exec.WithMemoryLimit(4*1024),
+			exec.WithIOLimits(major, minor, 4*1024, 1024))
 	}
 	if err != nil {
 		fmt.Printf("error in cmd creation: %v", err.Error())
 		return
 	}
-	fmt.Printf("Command id: %s\n", cmd.GetID())
+	fmt.Printf(cmd.String() + "\n")
 	shared.RegisterShutdownSigCallback(func() {
-		// cmd.Terminate()
-		fmt.Printf("Calling finish\n")
 		wg.Add(1)
-		cmd.Finish()
-		fmt.Printf("Done with finish\n")
+		cmd.SendTermSignal()
 		wg.Done()
 	})
 	/*
@@ -85,7 +83,7 @@ func main() {
 			cmd.SendTermSignal()
 		}()
 	*/
-	err = cmd.Execute()
+	err = cmd.Execute(context.Background())
 	if err != nil {
 		fmt.Printf("%s %d\n", err.Error(), cmd.GetExitCode())
 	} else {
@@ -93,6 +91,7 @@ func main() {
 	}
 	wg.Wait()
 	cmd.Finish()
+	fmt.Printf(cmd.String() + "\n")
 }
 
 func GetFilesystemMount(path string) (string, error) {

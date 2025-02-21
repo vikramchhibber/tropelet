@@ -9,76 +9,73 @@ import (
 	"strings"
 )
 
+type ControlGroup interface {
+	Set() error
+	GetName() string
+}
+
 type ControlGroupsManager struct {
-	cpu            *CPUControlGroup
-	mem            *MemoryControlGroup
-	io             *IOManager
-	cgroupFile     *os.File
-	cgroupPath     string
-	cgroupControls []string
+	cgroups          []ControlGroup
+	cgroupFile       *os.File
+	cgroupPath       string
+	supportedCGroups []string
 }
 
 func NewControlGroupsManager(name string) (*ControlGroupsManager, error) {
-	cgroupV2Path, err := findCgroupV2Mount()
+	// Get cgroups path from /proc/mounts
+	cgroupV2Path, err := findCGroupV2Mount()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get cgroups path: [%w]", err)
 	}
-	cgroupControls, err := readSubtreeControls(cgroupV2Path)
+	// Get all the enabled controllers
+	supportedCGroups, err := readSubtreeControls(cgroupV2Path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get supported cgroups: [%w]", err)
 	}
-	return &ControlGroupsManager{cgroupPath: filepath.Join(cgroupV2Path, name),
-		cgroupControls: cgroupControls}, nil
+
+	return &ControlGroupsManager{
+		cgroupPath:       filepath.Join(cgroupV2Path, name),
+		supportedCGroups: supportedCGroups, cgroups: []ControlGroup{}}, nil
 }
 
 func (m *ControlGroupsManager) NewCPUControlGroup(quotaMillSeconds,
 	periodMillSeconds int64) *CPUControlGroup {
-	m.cpu = NewCPUControlGroup(m.cgroupPath, quotaMillSeconds, periodMillSeconds)
+	cpu := NewCPUControlGroup(m.cgroupPath, quotaMillSeconds, periodMillSeconds)
+	m.cgroups = append(m.cgroups, cpu)
 
-	return m.cpu
+	return cpu
 }
 
 func (m *ControlGroupsManager) NewMemoryControlGroup(memoryKB int64) *MemoryControlGroup {
-	m.mem = NewMemoryControlGroup(m.cgroupPath, memoryKB)
+	mem := NewMemoryControlGroup(m.cgroupPath, memoryKB)
+	m.cgroups = append(m.cgroups, mem)
 
-	return m.mem
+	return mem
 }
 
-func (m *ControlGroupsManager) NewIOManager(deviceMajorNum, deviceMinorNum int32,
-	rbps, wbps int64) *IOManager {
-	m.io = NewIOManager(m.cgroupPath, deviceMajorNum, deviceMinorNum, rbps, wbps)
+func (m *ControlGroupsManager) NewIOControlGroup(deviceMajorNum, deviceMinorNum int32,
+	rbps, wbps int64) *IOControlGroup {
+	io := NewIOControlGroup(m.cgroupPath, deviceMajorNum, deviceMinorNum, rbps, wbps)
+	m.cgroups = append(m.cgroups, io)
 
-	return m.io
+	return io
 }
 
 func (m *ControlGroupsManager) Set() error {
 	if err := os.Mkdir(m.cgroupPath, 0755); err != nil {
-		return fmt.Errorf("failed to create cgroup path %s: %v",
+		return fmt.Errorf("failed to create cgroup path %s: [%w]",
 			m.cgroupPath, err)
 	}
-
-	if m.cpu != nil {
-		if !slices.Contains(m.cgroupControls, "cpu") {
-			return nil
+	for _, cgroup := range m.cgroups {
+		// My environment somehow does not have "io" controller
+		// enabled. Instead of failing the entire set, logging
+		// this and continuing
+		if !slices.Contains(m.supportedCGroups, cgroup.GetName()) {
+			fmt.Print("\033[31m" + cgroup.GetName() +
+				" control group is NOT enabled, continuing...\n" + "\033[0m")
+			continue
 		}
-		if err := m.cpu.Set(); err != nil {
-			return err
-		}
-	}
-	if m.mem != nil {
-		if !slices.Contains(m.cgroupControls, "memory") {
-			return nil
-		}
-		if err := m.mem.Set(); err != nil {
-			return err
-		}
-	}
-	if m.io != nil {
-		if !slices.Contains(m.cgroupControls, "io") {
-			fmt.Printf("IO is disabled\n")
-			return nil
-		}
-		if err := m.io.Set(); err != nil {
+		if err := cgroup.Set(); err != nil {
 			return err
 		}
 	}
@@ -92,7 +89,7 @@ func (m *ControlGroupsManager) GetControlGroupsFD() (int, error) {
 	}
 	cgroupFile, err := os.Open(m.cgroupPath)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to open %s: [%w]", m.cgroupPath, err)
 	}
 	m.cgroupFile = cgroupFile
 
@@ -108,7 +105,7 @@ func (m *ControlGroupsManager) Finish() {
 	}
 }
 
-func findCgroupV2Mount() (string, error) {
+func findCGroupV2Mount() (string, error) {
 	f, err := os.Open("/proc/mounts")
 	if err != nil {
 		return "", err
@@ -153,7 +150,7 @@ func readSubtreeControls(cgroupPath string) ([]string, error) {
 
 func writeToFile(filePath, value string) error {
 	if err := os.WriteFile(filePath, []byte(value), 0644); err != nil {
-		return fmt.Errorf("failed to write to %s, %s: %v", filePath, value, err)
+		return fmt.Errorf("failed writing to %s: [%w]", filePath, err)
 	}
 
 	return nil

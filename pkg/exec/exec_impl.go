@@ -2,11 +2,9 @@ package exec
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"io"
-	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 )
 
@@ -14,17 +12,22 @@ func (c *commandImpl) GetID() string {
 	return c.id
 }
 
-func (c *commandImpl) Execute() error {
-	if err := c.setState([]jobStateType{jobStateInit},
-		jobStateRunning); err != nil {
+func (c *commandImpl) String() string {
+	return c.id + ", " + c.name +
+		" " + strings.Join(c.args, " ") + ", " +
+		string(c.cmdState)
+}
+
+func (c *commandImpl) Execute(ctx context.Context) error {
+	if err := c.setState([]cmdStateType{cmdStateInit},
+		cmdStateRunning); err != nil {
 		return err
 	}
-	c.err = c.execute()
-	if err := c.setState([]jobStateType{jobStateRunning},
-		jobStateTerminated); err != nil {
+	c.err = c.execute(ctx)
+	if err := c.setState([]cmdStateType{cmdStateRunning},
+		cmdStateTerminated); err != nil {
 		return err
 	}
-	fmt.Printf("done\n")
 
 	return c.err
 }
@@ -32,7 +35,9 @@ func (c *commandImpl) Execute() error {
 func (c *commandImpl) IsTerminated() bool {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	return c.jobState == jobStateTerminated
+
+	return c.cmdState == cmdStateTerminated ||
+		c.cmdState == cmdStateFinished
 }
 
 func (c *commandImpl) GetExitError() error {
@@ -44,53 +49,33 @@ func (c *commandImpl) GetExitCode() int {
 		return c.cmd.ProcessState.ExitCode()
 	}
 
-	return 0
+	// TODO: Not sure if this is correct code
+	return 1
 }
 
-func (c *commandImpl) SendTermSignal() error {
+func (c *commandImpl) SendTermSignal() {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	if c.cmd != nil && c.cmd.Process != nil {
-		if process, err := os.FindProcess(c.cmd.Process.Pid); err == nil {
-			return process.Signal(syscall.SIGTERM)
-		}
-	}
 
-	return errors.New("process not in running state")
+	// Send term signal to all the process in the group
+	c.sendSignalToGroup(syscall.SIGTERM)
 }
 
 func (c *commandImpl) Finish() {
 	// Finish can be called in any of these states
 	// except "finished"
-	if err := c.setState([]jobStateType{jobStateInit,
-		jobStateRunning, jobStateTerminated},
-		jobStateFinished); err != nil {
+	if err := c.setState([]cmdStateType{cmdStateInit,
+		cmdStateRunning, cmdStateTerminated},
+		cmdStateFinished); err != nil {
 		// Already in finished state
 		return
 	}
 
-	// Get the process group ID.
-	if c.cmd != nil && c.cmd.Process != nil {
-		if pgid, err := syscall.Getpgid(c.cmd.Process.Pid); err == nil {
-			// Send SIGKILL to the entire process group.
-			fmt.Printf("sending kill to all processes in group\n")
-			if err := syscall.Kill(-pgid, syscall.SIGKILL); err != nil {
-				fmt.Printf("failed to send SIGKILL to process group: %v", err)
-			}
-		}
-	}
+	// Kill all the processes in the group
+	c.sendSignalToGroup(syscall.SIGKILL)
 
-	// We will wait for all the goroutines
-	// to finish before closing the channels
+	// We will wait for all the goroutines to finish
 	c.waitGroup.Wait()
-	/*
-		if c.stdoutChan != nil {
-			close(c.stdoutChan)
-		}
-		if c.stderrChan != nil {
-			close(c.stderrChan)
-		}
-	*/
 	if c.cgroupsMgr != nil {
 		c.cgroupsMgr.Finish()
 	}
@@ -99,12 +84,8 @@ func (c *commandImpl) Finish() {
 	}
 }
 
-func (c *commandImpl) execute() error {
-	timeoutCtx, cancel := context.WithTimeout(
-		context.Background(), c.timeout)
-	defer cancel()
-
-	c.cmd = exec.CommandContext(timeoutCtx, c.name, c.args...)
+func (c *commandImpl) execute(ctx context.Context) error {
+	c.cmd = exec.CommandContext(ctx, c.name, c.args...)
 	if c.stdoutChan != nil {
 		stdoutPipe, err := c.cmd.StdoutPipe()
 		if err != nil {
@@ -121,25 +102,31 @@ func (c *commandImpl) execute() error {
 		c.waitGroup.Add(1)
 		go c.readPipe(c.stderrChan, stderrPipe)
 	}
-	c.cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-		Cloneflags: syscall.CLONE_NEWPID | syscall.CLONE_NEWNET |
-			syscall.CLONE_NEWNS | syscall.CLONE_INTO_CGROUP,
-		Unshareflags: syscall.CLONE_NEWNS | syscall.CLONE_NEWNET,
-		UseCgroupFD:  true,
+	c.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if c.newPidNS {
+		c.cmd.SysProcAttr.Cloneflags |= syscall.CLONE_NEWPID
+	}
+	if c.newNetNS {
+		c.cmd.SysProcAttr.Cloneflags |= syscall.CLONE_NEWNET
+		c.cmd.SysProcAttr.Unshareflags |= syscall.CLONE_NEWNET
 	}
 	if c.mountFSMgr != nil {
 		c.cmd.SysProcAttr.Chroot = c.mountFSMgr.GetMountRoot()
 		c.cmd.Dir = "/"
+
+		c.cmd.SysProcAttr.Cloneflags |= syscall.CLONE_NEWNS
+		c.cmd.SysProcAttr.Unshareflags |= syscall.CLONE_NEWNS
 	}
 
-	// Pass control-group FD to the process
+	// Pass control-groups directory FD to the process
 	if c.cgroupsMgr != nil {
 		var err error
 		if c.cmd.SysProcAttr.CgroupFD, err =
 			c.cgroupsMgr.GetControlGroupsFD(); err != nil {
 			return err
 		}
+		c.cmd.SysProcAttr.Cloneflags |= syscall.CLONE_INTO_CGROUP
+		c.cmd.SysProcAttr.UseCgroupFD = true
 	}
 
 	// Execute command
@@ -172,4 +159,12 @@ func (c *commandImpl) readPipe(dst ReadChannel, src io.Reader) {
 		}
 	}
 	c.waitGroup.Done()
+}
+
+func (c *commandImpl) sendSignalToGroup(sig syscall.Signal) {
+	if c.cmd != nil && c.cmd.Process != nil {
+		if pgid, err := syscall.Getpgid(c.cmd.Process.Pid); err == nil {
+			syscall.Kill(-pgid, sig)
+		}
+	}
 }

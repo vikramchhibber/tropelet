@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 )
 
-type IOManager struct {
+type IOControlGroup struct {
 	deviceMajorNum int32
 	deviceMinorNum int32
 	rbps           int64
@@ -13,11 +13,16 @@ type IOManager struct {
 	cgroupPath     string
 }
 
-func NewIOManager(cgroupPath string, deviceMajorNum, deviceMinorNum int32, rbps, wbps int64) *IOManager {
-	return &IOManager{deviceMajorNum, deviceMinorNum, rbps, wbps, cgroupPath}
+func NewIOControlGroup(cgroupPath string, deviceMajorNum, deviceMinorNum int32,
+	rbps, wbps int64) *IOControlGroup {
+	return &IOControlGroup{deviceMajorNum, deviceMinorNum, rbps, wbps, cgroupPath}
 }
 
-func (c *IOManager) Set() error {
+func (c *IOControlGroup) GetName() string {
+	return "io"
+}
+
+func (c *IOControlGroup) Set() error {
 	if c.rbps != 0 {
 		target := filepath.Join(c.cgroupPath, "io.max")
 		value := fmt.Sprintf("%d:%d rbps=%d", c.deviceMajorNum,
@@ -31,13 +36,6 @@ func (c *IOManager) Set() error {
 		value := fmt.Sprintf("%d:%d wbps=%d", c.deviceMajorNum,
 			c.deviceMinorNum, c.wbps)
 		if err := writeToFile(target, value); err != nil {
-			return err
-		}
-	}
-
-	if c.rbps != 0 || c.wbps != 0 {
-		target := filepath.Join(c.cgroupPath, "cgroup.subtree_control")
-		if err := writeToFile(target, "+io"); err != nil {
 			return err
 		}
 	}
