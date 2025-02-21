@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "github.com/troplet/pkg/proto";
+
+import "google/protobuf/timestamp.proto";
+
+message JobEntry {
+  // Service assigned unique identity (UUID v4) for the job.
+  string id = 1;
+  // Job command.
+  string command = 2;
+  // Optional arguments to the command.
+  repeated string args = 3;
+  // Start time of the job.
+  google.protobuf.Timestamp start_ts = 4;
+  // End time of the job if it is terminated.
+  optional google.protobuf.Timestamp end_ts = 5;
+  // Error string if job terminated with error.
+  optional string exit_error = 6;
+  // Exit code of the job after termination.
+  optional int32 exit_code = 7;
+}
+
+message JobStreamEntry {
+  // Standard output or error stream entry
+  bytes entry = 1;
+  // Flag indicating if entry is standard error or output.
+  bool is_std_error = 2;
+}
+
+message ListJobsRequest {
+}
+
+message ListJobsResponse {
+  // The response may include terminated job entries
+  // if at least one job is running.
+  repeated JobEntry jobs = 1;
+}
+
+message LaunchJobRequest {
+  // Command string of the job including the path and arguments.
+  string command = 1;
+  repeated string args = 2;
+}
+
+message LaunchJobResponse {
+  // Unique job identity assigned by the service
+  string id = 1;
+}
+
+message GetJobStatusRequest {
+  // Unique job id returned in LaunchJobRequest or ListJobsRequest
+  string id = 1;
+}
+
+message GetJobStatusResponse {
+  JobEntry job = 1;
+}
+
+message AttachJobRequest {
+  string id = 1;
+}
+
+message AttachJobResponse {
+  JobStreamEntry stream_entry = 1;
+}
+
+message TerminateJobRequest {
+  // Unique job identity returned in LaunchJobResponse or ListJobsResponse.
+  // Service will ignore unknown job id.
+  string id = 1;
+}
+
+message TerminateJobResponse {
+}
