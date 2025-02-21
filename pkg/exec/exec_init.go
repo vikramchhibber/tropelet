@@ -55,6 +55,11 @@ func newCommand(name string, args []string, options ...CommandOption) (Command, 
 			execCmd.Finish()
 		}
 	}()
+
+	if execCmd.cgroupsMgr, err = cgroups.NewControlGroupsManager(id); err != nil {
+		return nil, err
+	}
+
 	// Read passed options
 	for _, option := range options {
 		if err = option(execCmd); err != nil {
@@ -78,13 +83,13 @@ func newCommand(name string, args []string, options ...CommandOption) (Command, 
 }
 
 func (c *commandImpl) setCPULimit(quotaMillSeconds, periodMillSeconds int64) error {
-	c.getCGroupsMgr().NewCPUControlGroup(quotaMillSeconds, periodMillSeconds)
+	c.cgroupsMgr.NewCPUControlGroup(quotaMillSeconds, periodMillSeconds)
 
 	return nil
 }
 
 func (c *commandImpl) setMemoryLimit(memKB int64) error {
-	c.getCGroupsMgr().NewMemoryControlGroup(memKB)
+	c.cgroupsMgr.NewMemoryControlGroup(memKB)
 
 	return nil
 }
@@ -116,7 +121,7 @@ func (c *commandImpl) withNewNS() error {
 }
 
 func (c *commandImpl) setIOLimit(deviceMajorNum, deviceMinorNum int32, rbps, wbps int64) error {
-	c.getCGroupsMgr().NewIOManager(deviceMajorNum, deviceMinorNum, rbps, wbps)
+	c.cgroupsMgr.NewIOManager(deviceMajorNum, deviceMinorNum, rbps, wbps)
 
 	return nil
 }
@@ -130,12 +135,4 @@ func (c *commandImpl) setState(expectedStates []jobStateType, newState jobStateT
 	c.jobState = newState
 
 	return nil
-}
-
-func (c *commandImpl) getCGroupsMgr() *cgroups.ControlGroupsManager {
-	if c.cgroupsMgr == nil {
-		c.cgroupsMgr = cgroups.NewControlGroupsManager(c.id)
-	}
-
-	return c.cgroupsMgr
 }

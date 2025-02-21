@@ -21,10 +21,12 @@ func (c *MemoryControlGroup) Set() error {
 			strconv.FormatInt(c.memKB*1024, 10)); err != nil {
 			return err
 		}
-		target = filepath.Join(c.cgroupPath, "cgroup.subtree_control")
-		if err := writeToFile(target, "+memory"); err != nil {
-			return err
-		}
+		/*
+			target = filepath.Join(c.cgroupPath, "cgroup.subtree_control")
+			if err := writeToFile(target, "+memory"); err != nil {
+				return err
+			}
+		*/
 	}
 
 	return nil

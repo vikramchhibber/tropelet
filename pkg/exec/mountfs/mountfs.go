@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
-
-	"github.com/troplet/pkg/exec/cgroups"
 )
 
 var fsInfo = []struct {
@@ -24,7 +22,7 @@ var fsInfo = []struct {
 	{"/bin", "bin", "", syscall.MS_BIND | syscall.MS_RDONLY, 500},
 	{"/lib64", "lib64", "", syscall.MS_BIND | syscall.MS_RDONLY, 500},
 	{"proc", "proc", "proc", 0, 600},
-	{"", cgroups.CGroupV2Path, "cgroup2", 0, 500},
+	{"", "/sys/fs/cgroup", "cgroup2", 0, 500},
 }
 
 type MountFSManager struct {

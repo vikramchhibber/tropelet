@@ -24,6 +24,7 @@ func (c *commandImpl) Execute() error {
 		jobStateTerminated); err != nil {
 		return err
 	}
+	fmt.Printf("done\n")
 
 	return c.err
 }
@@ -82,12 +83,14 @@ func (c *commandImpl) Finish() {
 	// We will wait for all the goroutines
 	// to finish before closing the channels
 	c.waitGroup.Wait()
-	if c.stdoutChan != nil {
-		close(c.stdoutChan)
-	}
-	if c.stderrChan != nil {
-		close(c.stderrChan)
-	}
+	/*
+		if c.stdoutChan != nil {
+			close(c.stdoutChan)
+		}
+		if c.stderrChan != nil {
+			close(c.stderrChan)
+		}
+	*/
 	if c.cgroupsMgr != nil {
 		c.cgroupsMgr.Finish()
 	}
@@ -123,6 +126,7 @@ func (c *commandImpl) execute() error {
 		Cloneflags: syscall.CLONE_NEWPID | syscall.CLONE_NEWNET |
 			syscall.CLONE_NEWNS | syscall.CLONE_INTO_CGROUP,
 		Unshareflags: syscall.CLONE_NEWNS | syscall.CLONE_NEWNET,
+		UseCgroupFD:  true,
 	}
 	if c.mountFSMgr != nil {
 		c.cmd.SysProcAttr.Chroot = c.mountFSMgr.GetMountRoot()
@@ -151,7 +155,7 @@ func (c *commandImpl) readPipe(dst ReadChannel, src io.Reader) {
 	for {
 		// TODO: Config candidate
 		// TODO: This has GC overhead
-		buf := make([]byte, 64)
+		buf := make([]byte, 16)
 		n, err := io.ReadFull(src, buf)
 		if n != 0 {
 			// This can happen if EOF is reached
@@ -163,6 +167,7 @@ func (c *commandImpl) readPipe(dst ReadChannel, src io.Reader) {
 			}
 		}
 		if err != nil {
+			close(dst)
 			break
 		}
 	}
