@@ -129,11 +129,11 @@ func (c *commandImpl) execute() error {
 		c.cmd.Dir = "/"
 	}
 
-	// Attach the launched process PID
+	// Pass control-group FD to the process
 	if c.cgroupsMgr != nil {
 		var err error
 		if c.cmd.SysProcAttr.CgroupFD, err =
-			c.cgroupsMgr.GetControlGroupFD(); err != nil {
+			c.cgroupsMgr.GetControlGroupsFD(); err != nil {
 			return err
 		}
 	}
@@ -149,13 +149,8 @@ func (c *commandImpl) execute() error {
 
 func (c *commandImpl) readPipe(dst ReadChannel, src io.Reader) {
 	for {
-		// TODO: We are allocating this buffer for every
-		// read. This has GC overhead. This can be avoided
-		// by using circular queue with pre-allocated buffers.
-		// Can be achieved using two channels where the
-		// consumer sends back the read buffer to producer
-		// after using it.
 		// TODO: Config candidate
+		// TODO: This has GC overhead
 		buf := make([]byte, 64)
 		n, err := io.ReadFull(src, buf)
 		if n != 0 {

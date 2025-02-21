@@ -4,19 +4,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"syscall"
 )
 
 const (
-	CGroupV2Path          = "/sys/fs/cgroup"
-	cgroupFilePermissions = 0644
+	CGroupV2Path = "/sys/fs/cgroup"
 )
 
 type ControlGroupsManager struct {
 	cpu        *CPUControlGroup
 	mem        *MemoryControlGroup
 	io         *IOManager
-	cgroupFD   int
+	cgroupFile *os.File
 	cgroupPath string
 }
 
@@ -68,31 +66,31 @@ func (m *ControlGroupsManager) Set() error {
 	return nil
 }
 
-func (m *ControlGroupsManager) GetControlGroupFD() (int, error) {
-	if m.cgroupFD != 0 {
-		return m.cgroupFD, nil
+func (m *ControlGroupsManager) GetControlGroupsFD() (int, error) {
+	if m.cgroupFile != nil {
+		return int(m.cgroupFile.Fd()), nil
 	}
-	cgroupFD, err := syscall.Open(m.cgroupPath, syscall.O_RDONLY, 0)
+	fmt.Printf("Opening...%s\n", m.cgroupPath)
+	cgroupFile, err := os.Open(m.cgroupPath)
 	if err != nil {
 		return 0, err
 	}
-	m.cgroupFD = cgroupFD
+	m.cgroupFile = cgroupFile
 
-	return m.cgroupFD, nil
+	return int(m.cgroupFile.Fd()), nil
 }
 
 func (m *ControlGroupsManager) Finish() {
+	if m.cgroupFile != nil {
+		m.cgroupFile.Close()
+	}
 	if m.cgroupPath != "" {
 		os.RemoveAll(m.cgroupPath)
-	}
-	if m.cgroupFD != 0 {
-		syscall.Close(m.cgroupFD)
 	}
 }
 
 func writeToFile(filePath, value string) error {
-	if err := os.WriteFile(filePath, []byte(value),
-		cgroupFilePermissions); err != nil {
+	if err := os.WriteFile(filePath, []byte(value), 0644); err != nil {
 		return fmt.Errorf("failed to write to %s, %s: %v", filePath, value, err)
 	}
 
