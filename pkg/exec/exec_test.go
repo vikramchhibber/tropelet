@@ -1,6 +1,7 @@
 package exec
 
 import (
+	"context"
 	"strings"
 	"sync"
 	"testing"
@@ -51,15 +52,9 @@ func (d *testJobReadData) testWait() {
 }
 
 func (d *testJobReadData) testNewCommand() (Command, error) {
-	if d.timeout == 0 {
-		return NewCommand(d.command, d.args,
-			WithStdoutChan(d.stdoutChan),
-			WithStderrChan(d.stderrChan))
-	}
 	return NewCommand(d.command, d.args,
 		WithStdoutChan(d.stdoutChan),
-		WithStderrChan(d.stderrChan),
-		WithTimeout(d.timeout))
+		WithStderrChan(d.stderrChan))
 }
 
 func TestBasic(t *testing.T) {
@@ -110,7 +105,12 @@ func TestBasic(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
-		err = cmd.Execute()
+		ctx := context.Background()
+		var cancel context.CancelFunc
+		if d.timeout != 0 {
+			ctx, cancel = context.WithTimeout(ctx, d.timeout)
+		}
+		err = cmd.Execute(ctx)
 		if diff := cmp.Diff(d.expectError, err != nil); diff != "" {
 			t.Errorf("Unexpected result: %s", diff)
 		}
@@ -136,6 +136,9 @@ func TestBasic(t *testing.T) {
 			if diff := cmp.Diff(d.expectedErrorStr, cmd.GetExitError().Error()); diff != "" {
 				t.Errorf("Unexpected result: %s", diff)
 			}
+		}
+		if cancel != nil {
+			cancel()
 		}
 	}
 }

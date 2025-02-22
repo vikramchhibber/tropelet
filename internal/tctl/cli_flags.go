@@ -2,6 +2,7 @@ package tctl
 
 import (
 	"github.com/spf13/cobra"
+
 	"github.com/troplet/internal/shared"
 )
 
@@ -65,7 +66,7 @@ func (c *Client) Execute() error {
 	// Persistent CLI flags applicable for all the commands
 	// Server address
 	rootCmd.PersistentFlags().StringVarP(&c.serverAddress, "server-address", "a",
-		shared.ServerDefaultAddress, "Server address in [address:port] format")
+		shared.ClientDefaultConnectAddress, "Server address in [address:port] format")
 	// Certificates directory path
 	rootCmd.PersistentFlags().StringVarP(&c.certificatesDirPath, "certs-path", "s",
 		"./certs/client", "Path of client certificates directory")

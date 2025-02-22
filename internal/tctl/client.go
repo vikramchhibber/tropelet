@@ -11,7 +11,7 @@ type Client struct {
 }
 
 func (c *Client) init() {
-	c.logger = shared.InitializeLogger()
+	c.logger = shared.CreateLogger()
 	c.logger.Infof("Using server-address: %s, certs-dir: %s",
 		c.serverAddress, c.certificatesDirPath)
 }
