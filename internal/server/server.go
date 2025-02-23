@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"net"
 	"sort"
+	"sync"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/peer"
 
 	"github.com/troplet/internal/shared"
 	"github.com/troplet/pkg/proto"
@@ -20,6 +22,8 @@ type Config struct {
 	CertPath     string
 	CertKeyPath  string
 }
+
+const cnCtxKey = "CommonName"
 
 func (c Config) String() string {
 	// Must not log sensitive credentials
@@ -46,7 +50,9 @@ func (s *Server) Start() error {
 	if err != nil {
 		return err
 	}
-	s.grpcServer = grpc.NewServer(grpc.Creds(tlsCredentials))
+	s.grpcServer = grpc.NewServer(grpc.Creds(tlsCredentials),
+		grpc.UnaryInterceptor(s.setPeerCertCNInCtx),
+		grpc.StreamInterceptor(s.setPeerCertCNInCtxForStream))
 	proto.RegisterJobServiceServer(s.grpcServer, s)
 	listen, err := net.Listen("tcp", s.config.Address)
 	if err != nil {
@@ -69,7 +75,7 @@ func (s *Server) Finish() {
 
 func (s *Server) ListJobs(ctx context.Context,
 	req *proto.ListJobsRequest) (*proto.ListJobsResponse, error) {
-	jobs := s.jobManager.GetAllJobStatuses(ctx, "abc")
+	jobs := s.jobManager.GetAllJobStatuses(ctx, s.getCNFromCtx(ctx))
 	// Sort by latest jobs first
 	sort.Slice(jobs, func(i, j int) bool {
 		return jobs[i].StartTs.AsTime().After(jobs[j].StartTs.AsTime())
@@ -80,25 +86,79 @@ func (s *Server) ListJobs(ctx context.Context,
 
 func (s *Server) GetJobStatus(ctx context.Context,
 	req *proto.GetJobStatusRequest) (*proto.GetJobStatusResponse, error) {
-	job := s.jobManager.GetJobStatus(ctx, "abc", req.Id)
+	job, err := s.jobManager.GetJobStatus(ctx, s.getCNFromCtx(ctx), req.Id)
+	if err != nil {
+		return nil, err
+	}
 
 	return &proto.GetJobStatusResponse{Job: job}, nil
 }
 
 func (s *Server) LaunchJob(ctx context.Context,
 	req *proto.LaunchJobRequest) (*proto.LaunchJobResponse, error) {
-	id := s.jobManager.Launch(ctx, "abc", req.Command, req.Args)
+	id := s.jobManager.Launch(ctx, s.getCNFromCtx(ctx), req.Command, req.Args)
 
 	return &proto.LaunchJobResponse{Id: id}, nil
 }
 
 func (s *Server) AttachJob(req *proto.AttachJobRequest, stream proto.JobService_AttachJobServer) error {
+	// TODO: Config candidate
+	stdoutChan := make(chan *proto.JobStreamEntry)
+	stderrChan := make(chan *proto.JobStreamEntry)
+	ctx := stream.Context()
+	commonName := s.getCNFromCtx(ctx)
+	s.logger.Warnf("%s %s", commonName, req.Id)
+	subscriberID, err := s.jobManager.Attach(ctx, commonName, req.Id, stdoutChan, stderrChan)
+	if err != nil {
+		return err
+	}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		numChannels := 2
+		for numChannels > 0 {
+			select {
+			case entry, ok := <-stdoutChan:
+				if !ok {
+					stdoutChan = nil
+					numChannels--
+					break
+				}
+				if err := stream.Send(&proto.AttachJobResponse{StreamEntry: entry}); err != nil {
+					// Send detach event to close channels
+					s.jobManager.Detach(ctx, commonName, req.Id, subscriberID)
+				}
+			case entry, ok := <-stderrChan:
+				if !ok {
+					stderrChan = nil
+					numChannels--
+					break
+				}
+				if err := stream.Send(&proto.AttachJobResponse{StreamEntry: entry}); err != nil {
+					// Send detach event to close channels
+					s.jobManager.Detach(ctx, commonName, req.Id, subscriberID)
+				}
+			}
+		}
+		// If we are here, the channels have closed
+		wg.Done()
+	}()
+	go func() {
+		<-ctx.Done()
+		// We are here as the client terminated the connection.
+		// We should detach to close the client channels
+		s.jobManager.Detach(ctx, commonName, req.Id, subscriberID)
+	}()
+
+	// We will wait the client channels to close
+	wg.Wait()
+
 	return nil
 }
 
 func (s *Server) TerminateJob(ctx context.Context,
 	req *proto.TerminateJobRequest) (*proto.TerminateJobResponse, error) {
-	s.jobManager.Terminate(ctx, "abc", req.Id)
+	s.jobManager.Terminate(ctx, s.getCNFromCtx(ctx), req.Id)
 
 	return &proto.TerminateJobResponse{}, nil
 }
@@ -119,4 +179,51 @@ func (s *Server) createTLSTransportCredentials() (credentials.TransportCredentia
 	}
 
 	return credentials.NewTLS(tlsConfig), nil
+}
+
+func (s *Server) setPeerCertCNInCtx(ctx context.Context, req interface{},
+	info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	peer, ok := peer.FromContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("failed getting remote peer")
+	}
+	tlsInfo, ok := peer.AuthInfo.(credentials.TLSInfo)
+	if !ok || tlsInfo.State.VerifiedChains == nil {
+		return nil, fmt.Errorf("failed getting TLS info from remote peer")
+	}
+	commonName := tlsInfo.State.VerifiedChains[0][0].Subject.CommonName
+	if commonName == "" {
+		return nil, fmt.Errorf("invalid CN received")
+	}
+	s.logger.Infof("Got CN " + commonName)
+
+	return handler(context.WithValue(ctx, cnCtxKey, commonName), req)
+}
+
+func (s *Server) setPeerCertCNInCtxForStream(srv interface{}, ss grpc.ServerStream,
+	info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	peer, ok := peer.FromContext(ss.Context())
+	if !ok {
+		return fmt.Errorf("failed getting remote peer")
+	}
+	tlsInfo, ok := peer.AuthInfo.(credentials.TLSInfo)
+	if !ok || tlsInfo.State.VerifiedChains == nil {
+		return fmt.Errorf("failed getting TLS info from remote peer")
+	}
+	commonName := tlsInfo.State.VerifiedChains[0][0].Subject.CommonName
+	if commonName == "" {
+		return fmt.Errorf("invalid CN received")
+	}
+	s.logger.Infof("Got CN " + commonName)
+
+	return handler(srv, ss)
+}
+
+func (s *Server) getCNFromCtx(ctx context.Context) string {
+	if commonName, ok := ctx.Value(cnCtxKey).(string); ok {
+		return commonName
+	}
+
+	// This should never happen
+	return ""
 }

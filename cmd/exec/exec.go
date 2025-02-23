@@ -83,7 +83,8 @@ func main() {
 			cmd.SendTermSignal()
 		}()
 	*/
-	err = cmd.Execute(context.Background())
+	cmd.Execute(context.Background())
+	err = cmd.GetExitError()
 	if err != nil {
 		fmt.Printf("%s %d\n", err.Error(), cmd.GetExitCode())
 	} else {

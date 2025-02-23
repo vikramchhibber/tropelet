@@ -23,7 +23,11 @@ func main() {
 			}
 			logger := shared.CreateLogger()
 			defer logger.Sync()
-			jobManager := server.NewJobManager(logger)
+			jobManager, err := server.NewJobManager(logger)
+			if err != nil {
+				return
+			}
+			defer jobManager.Finish()
 			logger.Infof("Starting server with config: " + config.String())
 			server := server.NewServer(&config, logger, jobManager)
 			// Shutdown server on SIGINT or SIGTERM

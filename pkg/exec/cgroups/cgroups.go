@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+// ControlGroup is a contract between ControlGroupsManager
+// and different ControlGroup implementation
 type ControlGroup interface {
 	Set() error
 	GetName() string
@@ -25,12 +27,12 @@ func NewControlGroupsManager(name string) (*ControlGroupsManager, error) {
 	// Get cgroups path from /proc/mounts
 	cgroupV2Path, err := findCGroupV2Mount()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get cgroups path: [%w]", err)
+		return nil, fmt.Errorf("failed to get cgroups path: %w", err)
 	}
 	// Get all the enabled controllers
 	supportedCGroups, err := readSubtreeControls(cgroupV2Path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get supported cgroups: [%w]", err)
+		return nil, fmt.Errorf("failed to get supported cgroups: %w", err)
 	}
 
 	return &ControlGroupsManager{
@@ -63,14 +65,20 @@ func (m *ControlGroupsManager) NewIOControlGroup(deviceMajorNum, deviceMinorNum 
 
 func (m *ControlGroupsManager) Set() error {
 	if err := os.Mkdir(m.cgroupPath, 0755); err != nil {
-		return fmt.Errorf("failed to create cgroup path %s: [%w]",
+		return fmt.Errorf("failed to create cgroup path %s: %w",
 			m.cgroupPath, err)
 	}
 	for _, cgroup := range m.cgroups {
 		// My environment somehow does not have "io" controller
-		// enabled. Instead of failing the entire set, logging
+		// enabled in subtree_control
+		// sudo cat /sys/fs/cgroup/cgroup.controllers
+		// cpuset cpu io memory hugetlb pids rdma misc
+		// sudo cat /sys/fs/cgroup/cgroup.subtree_control
+		// cpu memory pids
+		// Instead of failing the entire set, logging
 		// this and continuing
 		if !slices.Contains(m.supportedCGroups, cgroup.GetName()) {
+			// Print this in red
 			fmt.Print("\033[31m" + cgroup.GetName() +
 				" control group is NOT enabled, continuing...\n" + "\033[0m")
 			continue
@@ -89,7 +97,7 @@ func (m *ControlGroupsManager) GetControlGroupsFD() (int, error) {
 	}
 	cgroupFile, err := os.Open(m.cgroupPath)
 	if err != nil {
-		return 0, fmt.Errorf("failed to open %s: [%w]", m.cgroupPath, err)
+		return 0, fmt.Errorf("failed to open %s: %w", m.cgroupPath, err)
 	}
 	m.cgroupFile = cgroupFile
 
@@ -150,7 +158,7 @@ func readSubtreeControls(cgroupPath string) ([]string, error) {
 
 func writeToFile(filePath, value string) error {
 	if err := os.WriteFile(filePath, []byte(value), 0644); err != nil {
-		return fmt.Errorf("failed writing to %s: [%w]", filePath, err)
+		return fmt.Errorf("failed writing to %s: %w", filePath, err)
 	}
 
 	return nil

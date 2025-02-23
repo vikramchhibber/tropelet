@@ -32,32 +32,42 @@ type testJobReadData struct {
 func (d *testJobReadData) testStartRead() {
 	d.stdoutChan = make(ReadChannel)
 	d.stderrChan = make(ReadChannel)
-	d.wg.Add(2)
-	readChanFunc := func(strBuilder *strings.Builder, ch ReadChannel) {
-		for {
-			data, ok := <-ch
-			if !ok {
-				break
+	d.wg.Add(1)
+	go func() {
+		numChannels := 2
+		for numChannels > 0 {
+			select {
+			case data, ok := <-d.stdoutChan:
+				if !ok {
+					d.stdoutChan = nil
+					numChannels--
+					continue
+				}
+				d.stdoutStrBuilder.Write(data)
+			case data, ok := <-d.stderrChan:
+				if !ok {
+					d.stderrChan = nil
+					numChannels--
+					continue
+				}
+				d.stderrStrBuilder.Write(data)
 			}
-			strBuilder.Write(data)
 		}
 		d.wg.Done()
-	}
-	go readChanFunc(&d.stdoutStrBuilder, d.stdoutChan)
-	go readChanFunc(&d.stderrStrBuilder, d.stderrChan)
+	}()
 }
 
 func (d *testJobReadData) testWait() {
 	d.wg.Wait()
 }
 
-func (d *testJobReadData) testNewCommand() (Command, error) {
-	return NewCommand(d.command, d.args,
-		WithStdoutChan(d.stdoutChan),
-		WithStderrChan(d.stderrChan))
-}
-
 func TestBasic(t *testing.T) {
+	createCommand := func(d *testJobReadData) (Command, error) {
+		return NewCommand(d.command, d.args,
+			WithStdoutChan(d.stdoutChan),
+			WithStderrChan(d.stderrChan))
+	}
+
 	testData := []*testJobReadData{
 		{
 			testName:    "Basic ls cmd",
@@ -101,7 +111,7 @@ func TestBasic(t *testing.T) {
 	for _, d := range testData {
 		t.Logf("Executing test: %s", d.testName)
 		d.testStartRead()
-		cmd, err := d.testNewCommand()
+		cmd, err := createCommand(d)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -110,10 +120,138 @@ func TestBasic(t *testing.T) {
 		if d.timeout != 0 {
 			ctx, cancel = context.WithTimeout(ctx, d.timeout)
 		}
-		err = cmd.Execute(ctx)
-		if diff := cmp.Diff(d.expectError, err != nil); diff != "" {
+		// This will wait for the command to finish
+		cmd.Execute(ctx)
+		cmd.Finish()
+		d.testWait()
+		if diff := cmp.Diff(d.expectError, cmd.GetExitError() != nil); diff != "" {
 			t.Errorf("Unexpected result: %s", diff)
 		}
+		if d.expectStdoutStr != "" {
+			if diff := cmp.Diff(d.expectStdoutStr, d.stdoutStrBuilder.String()); diff != "" {
+				t.Errorf("Unexpected result: %s", diff)
+			}
+		}
+		if d.expectStderrStr != "" {
+			if diff := cmp.Diff(d.expectStderrStr, d.stderrStrBuilder.String()); diff != "" {
+				t.Errorf("Unexpected result: %s", diff)
+			}
+		}
+		if d.expectedErrorStr != "" {
+			if diff := cmp.Diff(true, cmd.GetExitError() != nil); diff != "" {
+				t.Fatalf("Unexpected result: %s", diff)
+			}
+			if diff := cmp.Diff(d.expectedErrorStr, cmd.GetExitError().Error()); diff != "" {
+				t.Errorf("Unexpected result: %s", diff)
+			}
+		}
+		if cancel != nil {
+			cancel()
+		}
+	}
+}
+
+func TestNewPIDNetNS(t *testing.T) {
+	createCommand := func(d *testJobReadData) (Command, error) {
+		return NewCommand(d.command, d.args,
+			WithStdoutChan(d.stdoutChan),
+			WithStderrChan(d.stderrChan),
+			WithUseNetNS(),
+			WithUsePIDNS())
+	}
+	testData := []*testJobReadData{
+		{
+			testName:        "PID should be one",
+			command:         "/usr/bin/bash",
+			args:            []string{"-c", "echo echo $$ > ./1; chmod +x ./1;./1"},
+			expectError:     false,
+			expectStdoutStr: "1\n",
+		},
+		{
+			testName:        "Add localhost loopback address on lo interface",
+			command:         "ip",
+			args:            []string{"addr", "add", "127.0.0.1/8", "dev", "lo"},
+			expectError:     false,
+			expectStdoutStr: "",
+		},
+	}
+	for _, d := range testData {
+		t.Logf("Executing test: %s", d.testName)
+		d.testStartRead()
+		cmd, err := createCommand(d)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		ctx := context.Background()
+		var cancel context.CancelFunc
+		if d.timeout != 0 {
+			ctx, cancel = context.WithTimeout(ctx, d.timeout)
+		}
+		// This will wait for the command to finish
+		cmd.Execute(ctx)
+		cmd.Finish()
+		d.testWait()
+		if diff := cmp.Diff(d.expectError, cmd.GetExitError() != nil); diff != "" {
+			t.Errorf("Unexpected result: %s", diff)
+		}
+		if d.expectStdoutStr != "" {
+			if diff := cmp.Diff(d.expectStdoutStr, d.stdoutStrBuilder.String()); diff != "" {
+				t.Errorf("Unexpected result: %s", diff)
+			}
+		}
+		if d.expectStderrStr != "" {
+			if diff := cmp.Diff(d.expectStderrStr, d.stderrStrBuilder.String()); diff != "" {
+				t.Errorf("Unexpected result: %s", diff)
+			}
+		}
+		if d.expectedErrorStr != "" {
+			if diff := cmp.Diff(true, cmd.GetExitError() != nil); diff != "" {
+				t.Fatalf("Unexpected result: %s", diff)
+			}
+			if diff := cmp.Diff(d.expectedErrorStr, cmd.GetExitError().Error()); diff != "" {
+				t.Errorf("Unexpected result: %s", diff)
+			}
+		}
+		if cancel != nil {
+			cancel()
+		}
+	}
+}
+
+func TestNewRootCGroups(t *testing.T) {
+	createCommand := func(d *testJobReadData) (Command, error) {
+		return NewCommand(d.command, d.args,
+			WithStdoutChan(d.stdoutChan),
+			WithStderrChan(d.stderrChan),
+			WithUseNetNS(),
+			WithUsePIDNS(),
+			WithNewRootBase("./"),
+			WithMemoryLimit(16*1024),
+			WithCPULimit(50, 1000))
+	}
+	testData := []*testJobReadData{
+		{
+			testName:        "Listing mounted directories",
+			command:         "/usr/bin/bash",
+			args:            []string{"-c", "ls -t / > ./1; sort ./1"},
+			expectError:     false,
+			expectStdoutStr: "1\nbin\nlib\nlib64\nproc\nsys\nusr\n",
+		},
+	}
+	for _, d := range testData {
+		t.Logf("Executing test: %s", d.testName)
+		d.testStartRead()
+		cmd, err := createCommand(d)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		ctx := context.Background()
+		var cancel context.CancelFunc
+		if d.timeout != 0 {
+			ctx, cancel = context.WithTimeout(ctx, d.timeout)
+		}
+		// This will wait for the command to finish
+		cmd.Execute(ctx)
 		cmd.Finish()
 		d.testWait()
 		if diff := cmp.Diff(d.expectError, cmd.GetExitError() != nil); diff != "" {
