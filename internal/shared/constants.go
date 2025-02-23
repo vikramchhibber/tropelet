@@ -6,7 +6,10 @@ const (
 	ClientDefaultConnectAddress = "localhost:" + ServerDefaultPort
 	ServerDefaultCertsDir       = "./certs/server/"
 	ClientDefaultCertsDir       = "./certs/client/"
-	DefaultCAFile               = "root_ca.pem"
-	DefaultCertFile             = "server.pem"
-	DefaultCertKeyFile          = "server.key"
+	ServerDefaultCAFile         = "root_ca.pem"
+	ServerDefaultCertFile       = "server.pem"
+	ServerDefaultCertKeyFile    = "server.key"
+	ClientDefaultCAFile         = "root_ca.pem"
+	ClientDefaultCertFile       = "client.pem"
+	ClientDefaultCertKeyFile    = "client.key"
 )

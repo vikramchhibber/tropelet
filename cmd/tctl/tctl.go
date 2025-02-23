@@ -12,20 +12,22 @@ import (
 
 func main() {
 	var serverAddress, certsDir string
-	// Root command list remote jobs
+	// Root command list remote jobs by default
 	var rootCmd = &cobra.Command{
 		Run: func(cmd *cobra.Command, args []string) {
 			executeCommand(serverAddress, certsDir, func(c *client.Client) {
+				c.ListJobs()
 			})
 		},
 	}
 	var listCmd = &cobra.Command{
 		Use:   "list",
 		Short: "List remote jobs",
-		Long:  "List remote jobs details",
+		Long:  "List remote jobs",
 		Args:  cobra.ExactArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
 			executeCommand(serverAddress, certsDir, func(c *client.Client) {
+				c.ListJobs()
 			})
 		},
 	}
@@ -36,6 +38,7 @@ func main() {
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			executeCommand(serverAddress, certsDir, func(c *client.Client) {
+				c.GetJobStatus(args[0])
 			})
 		},
 	}
@@ -46,6 +49,7 @@ func main() {
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			executeCommand(serverAddress, certsDir, func(c *client.Client) {
+				c.LaunchJob(args[0], args[1:])
 			})
 		},
 	}
@@ -56,6 +60,7 @@ func main() {
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			executeCommand(serverAddress, certsDir, func(c *client.Client) {
+				c.TerminateJob(args[0])
 			})
 		},
 	}
@@ -66,6 +71,7 @@ func main() {
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			executeCommand(serverAddress, certsDir, func(c *client.Client) {
+				c.AttachJob(args[0])
 			})
 		},
 	}
@@ -77,7 +83,7 @@ func main() {
 		shared.ClientDefaultConnectAddress, "Server address in [address:port] format")
 	// Certificates directory
 	rootCmd.PersistentFlags().StringVarP(&certsDir, "certs-dir", "c",
-		shared.ServerDefaultCertsDir, "Path of directory where certificates are located")
+		shared.ClientDefaultCertsDir, "Path of directory where certificates are located")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Errorf("failed executing command: %w", err)
@@ -87,9 +93,9 @@ func main() {
 func executeCommand(serverAddress, certsDir string, cmdCB func(client *client.Client)) {
 	config := client.Config{
 		ServerAddress: serverAddress,
-		CABundlePath:  filepath.Join(certsDir, shared.DefaultCAFile),
-		CertPath:      filepath.Join(certsDir, shared.DefaultCertFile),
-		CertKeyPath:   filepath.Join(certsDir, shared.DefaultCertKeyFile),
+		CABundlePath:  filepath.Join(certsDir, shared.ClientDefaultCAFile),
+		CertPath:      filepath.Join(certsDir, shared.ClientDefaultCertFile),
+		CertKeyPath:   filepath.Join(certsDir, shared.ClientDefaultCertKeyFile),
 	}
 	logger := shared.CreateLogger()
 	defer logger.Sync()

@@ -1,9 +1,11 @@
 package server
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
+	"sort"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -20,6 +22,7 @@ type Config struct {
 }
 
 func (c Config) String() string {
+	// Must not log sensitive credentials
 	return "\nAddress   :" + c.Address +
 		"\nCA bundle :" + c.CABundlePath +
 		"\nCert      :" + c.CertPath +
@@ -29,12 +32,13 @@ func (c Config) String() string {
 type Server struct {
 	config     *Config
 	logger     shared.Logger
+	jobManager *JobManager
 	grpcServer *grpc.Server
 	proto.UnimplementedJobServiceServer
 }
 
-func NewServer(config *Config, logger shared.Logger) *Server {
-	return &Server{config: config, logger: logger}
+func NewServer(config *Config, logger shared.Logger, jobManager *JobManager) *Server {
+	return &Server{config: config, logger: logger, jobManager: jobManager}
 }
 
 func (s *Server) Start() error {
@@ -61,6 +65,42 @@ func (s *Server) Finish() {
 		s.grpcServer.GracefulStop()
 		s.logger.Infof("Server stopped!")
 	}
+}
+
+func (s *Server) ListJobs(ctx context.Context,
+	req *proto.ListJobsRequest) (*proto.ListJobsResponse, error) {
+	jobs := s.jobManager.GetAllJobStatuses(ctx, "abc")
+	// Sort by latest jobs first
+	sort.Slice(jobs, func(i, j int) bool {
+		return jobs[i].StartTs.AsTime().After(jobs[j].StartTs.AsTime())
+	})
+
+	return &proto.ListJobsResponse{Jobs: jobs}, nil
+}
+
+func (s *Server) GetJobStatus(ctx context.Context,
+	req *proto.GetJobStatusRequest) (*proto.GetJobStatusResponse, error) {
+	job := s.jobManager.GetJobStatus(ctx, "abc", req.Id)
+
+	return &proto.GetJobStatusResponse{Job: job}, nil
+}
+
+func (s *Server) LaunchJob(ctx context.Context,
+	req *proto.LaunchJobRequest) (*proto.LaunchJobResponse, error) {
+	id := s.jobManager.Launch(ctx, "abc", req.Command, req.Args)
+
+	return &proto.LaunchJobResponse{Id: id}, nil
+}
+
+func (s *Server) AttachJob(req *proto.AttachJobRequest, stream proto.JobService_AttachJobServer) error {
+	return nil
+}
+
+func (s *Server) TerminateJob(ctx context.Context,
+	req *proto.TerminateJobRequest) (*proto.TerminateJobResponse, error) {
+	s.jobManager.Terminate(ctx, "abc", req.Id)
+
+	return &proto.TerminateJobResponse{}, nil
 }
 
 func (s *Server) createTLSTransportCredentials() (credentials.TransportCredentials, error) {

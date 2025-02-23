@@ -17,14 +17,15 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			config := server.Config{
 				Address:      address,
-				CABundlePath: filepath.Join(certsDir, shared.DefaultCAFile),
-				CertPath:     filepath.Join(certsDir, shared.DefaultCertFile),
-				CertKeyPath:  filepath.Join(certsDir, shared.DefaultCertKeyFile),
+				CABundlePath: filepath.Join(certsDir, shared.ServerDefaultCAFile),
+				CertPath:     filepath.Join(certsDir, shared.ServerDefaultCertFile),
+				CertKeyPath:  filepath.Join(certsDir, shared.ServerDefaultCertKeyFile),
 			}
 			logger := shared.CreateLogger()
 			defer logger.Sync()
+			jobManager := server.NewJobManager(logger)
 			logger.Infof("Starting server with config: " + config.String())
-			server := server.NewServer(&config, logger)
+			server := server.NewServer(&config, logger, jobManager)
 			// Shutdown server on SIGINT or SIGTERM
 			shared.RegisterShutdownSigCallback(func() {
 				server.Finish()
