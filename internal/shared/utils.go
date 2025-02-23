@@ -45,11 +45,8 @@ func RegisterShutdownSigCallback(shutdownSigCB func()) {
 	sigChannel := make(chan os.Signal, 1)
 	signal.Notify(sigChannel, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
-		switch <-sigChannel {
-		case syscall.SIGINT, syscall.SIGTERM:
-			shutdownSigCB()
-			return
-		}
+		<-sigChannel
+		shutdownSigCB()
 	}()
 }
 

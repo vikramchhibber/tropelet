@@ -1,12 +1,12 @@
 package shared
 
 const (
-	ServerDefaultPort          = "16000"
-	ServerDefaultListenAddress = "0.0.0.0:" + ServerDefaultPort
-	ServerDefaultCertsDir      = "./certs/server/"
-	ServerDefaultCAFile        = "root_ca.pem"
-	ServerDefaultCertFile      = "server.pem"
-	ServerDefaultCertKeyFile   = "server.key"
-
+	ServerDefaultPort           = "16000"
+	ServerDefaultListenAddress  = "0.0.0.0:" + ServerDefaultPort
 	ClientDefaultConnectAddress = "localhost:" + ServerDefaultPort
+	ServerDefaultCertsDir       = "./certs/server/"
+	ClientDefaultCertsDir       = "./certs/client/"
+	DefaultCAFile               = "root_ca.pem"
+	DefaultCertFile             = "server.pem"
+	DefaultCertKeyFile          = "server.key"
 )
