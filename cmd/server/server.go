@@ -28,12 +28,9 @@ func main() {
 				return
 			}
 			defer jobManager.Finish()
-			logger.Infof("Starting server with config: " + config.String())
 			server := server.NewServer(&config, logger, jobManager)
-			// Shutdown server on SIGINT or SIGTERM
-			shared.RegisterShutdownSigCallback(func() {
-				server.Finish()
-			})
+			defer server.Finish()
+			logger.Infof("Starting server with config: " + config.String())
 			if err := server.Start(); err != nil {
 				logger.Errorf(err.Error())
 			}

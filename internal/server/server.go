@@ -75,9 +75,9 @@ func (s *Server) Finish() {
 func (s *Server) ListJobs(ctx context.Context,
 	req *proto.ListJobsRequest) (*proto.ListJobsResponse, error) {
 	jobs := s.jobManager.GetAllJobStatuses(ctx, s.getCNFromCtx(ctx))
-	// Sort by latest jobs first
+	// Sort by latest jobs last
 	sort.Slice(jobs, func(i, j int) bool {
-		return jobs[i].StartTs.AsTime().After(jobs[j].StartTs.AsTime())
+		return jobs[i].StartTs.AsTime().Before(jobs[j].StartTs.AsTime())
 	})
 
 	return &proto.ListJobsResponse{Jobs: jobs}, nil

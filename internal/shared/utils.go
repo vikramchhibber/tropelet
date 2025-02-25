@@ -7,9 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -39,15 +37,6 @@ func CreateLogger() Logger {
 
 	// Build the logger with this core
 	return zap.New(core).Sugar()
-}
-
-func RegisterShutdownSigCallback(shutdownSigCB func()) {
-	sigChannel := make(chan os.Signal, 1)
-	signal.Notify(sigChannel, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sigChannel
-		shutdownSigCB()
-	}()
 }
 
 func LoadCertificates(caBundlePath, certPath,

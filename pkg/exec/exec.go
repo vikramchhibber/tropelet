@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os/exec"
 	"sync"
-	"sync/atomic"
 	"syscall"
 
 	"github.com/troplet/pkg/exec/cgroups"
@@ -40,8 +39,9 @@ type Command struct {
 	// comparison and transition, setting of exitError and exitCode
 	lock     sync.RWMutex
 	cmdState cmdStateType
-	// Flag to indicate stdout/stderr readers to close the channel
-	closeReaders atomic.Bool
+	// Process group id. Applicable only after the process has started
+	// successfully
+	pgid int
 }
 
 // Channel type to send stdout or stderror data to application
@@ -128,33 +128,7 @@ func (c *Command) String() string {
 // Executes this command. This call blocks till the
 // command has terminated.
 func (c *Command) Execute(ctx context.Context) error {
-	// Move to running state
-	changeStateToRunning := func() bool {
-		c.lock.Lock()
-		defer c.lock.Unlock()
-		if c.cmdState != cmdStateInit {
-			return false
-		}
-		c.cmdState = cmdStateRunning
-		return true
-	}
-	if !changeStateToRunning() {
-		return fmt.Errorf("invalid command state")
-	}
-
-	err := c.execute(ctx)
-
-	// Move to terminated state and collect exit code and error
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	c.exitError = err
-	if c.cmd != nil && c.cmd.ProcessState != nil {
-		c.exitCode = c.cmd.ProcessState.ExitCode()
-	}
-
-	c.cmdState = cmdStateTerminated
-
-	return err
+	return c.execute(ctx)
 }
 
 // Checks if the command has terminated
@@ -193,6 +167,8 @@ func (c *Command) GetExitCode() (int, error) {
 // SIGTERM signal if running. Will return error in case
 // the command is not running or kill fails.
 func (c *Command) SendTermSignal() error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	return c.sendSignalToGroup(syscall.SIGTERM)
 }
 

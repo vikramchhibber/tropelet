@@ -108,65 +108,90 @@ func (c *Command) setIOLimits(deviceMajorNum, deviceMinorNum int32, rbps, wbps i
 }
 
 func (c *Command) execute(ctx context.Context) error {
-	c.cmd = exec.CommandContext(ctx, c.name, c.args...)
 	var wg sync.WaitGroup
 	defer wg.Wait()
-	if c.stdoutChan != nil {
-		stdoutPipe, err := c.cmd.StdoutPipe()
-		if err != nil {
-			return fmt.Errorf("failed creating stdout pipe: %w", err)
-		}
-		wg.Add(1)
-		go func() {
-			c.readPipe(c.stdoutChan, stdoutPipe)
-			wg.Done()
-		}()
-	}
-	if c.stderrChan != nil {
-		stderrPipe, err := c.cmd.StderrPipe()
-		if err != nil {
-			return fmt.Errorf("failed creating stderr pipe: %w", err)
-		}
-		wg.Add(1)
-		go func() {
-			c.readPipe(c.stderrChan, stderrPipe)
-			wg.Done()
-		}()
-	}
-	// TODO: Config candidate
-	c.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	if c.usePIDNS {
-		c.cmd.SysProcAttr.Cloneflags |= syscall.CLONE_NEWPID
-	}
-	if c.useNetNS {
-		c.cmd.SysProcAttr.Cloneflags |= syscall.CLONE_NEWNET
-		c.cmd.SysProcAttr.Unshareflags |= syscall.CLONE_NEWNET
-	}
-	if c.mountFSMgr != nil {
-		c.cmd.SysProcAttr.Chroot = c.mountFSMgr.GetMountRoot()
-		c.cmd.Dir = "/"
-		c.cmd.SysProcAttr.Cloneflags |= syscall.CLONE_NEWNS
-		c.cmd.SysProcAttr.Unshareflags |= syscall.CLONE_NEWNS
-	}
 
-	// Pass control-groups directory FD to the process
-	if c.cgroupsMgr != nil {
+	// Move to running state
+	changeStateToRunning := func() error {
 		var err error
-		c.cmd.SysProcAttr.CgroupFD, err = c.cgroupsMgr.GetControlGroupsFD()
-		if err != nil {
-			return err
+		c.lock.Lock()
+		defer c.lock.Unlock()
+		if c.cmdState != cmdStateInit {
+			return fmt.Errorf("invalid command state")
 		}
-		c.cmd.SysProcAttr.Cloneflags |= syscall.CLONE_INTO_CGROUP
-		c.cmd.SysProcAttr.UseCgroupFD = true
-	}
+		c.cmd = exec.CommandContext(ctx, c.name, c.args...)
+		if c.stdoutChan != nil {
+			stdoutPipe, err := c.cmd.StdoutPipe()
+			if err != nil {
+				return fmt.Errorf("failed creating stdout pipe: %w", err)
+			}
+			wg.Add(1)
+			go func() {
+				c.readPipe(c.stdoutChan, stdoutPipe)
+				wg.Done()
+			}()
+		}
+		if c.stderrChan != nil {
+			stderrPipe, err := c.cmd.StderrPipe()
+			if err != nil {
+				return fmt.Errorf("failed creating stderr pipe: %w", err)
+			}
+			wg.Add(1)
+			go func() {
+				c.readPipe(c.stderrChan, stderrPipe)
+				wg.Done()
+			}()
+		}
+		// TODO: Config candidate
+		c.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		if c.usePIDNS {
+			c.cmd.SysProcAttr.Cloneflags |= syscall.CLONE_NEWPID
+		}
+		if c.useNetNS {
+			c.cmd.SysProcAttr.Cloneflags |= syscall.CLONE_NEWNET
+			c.cmd.SysProcAttr.Unshareflags |= syscall.CLONE_NEWNET
+		}
+		if c.mountFSMgr != nil {
+			c.cmd.SysProcAttr.Chroot = c.mountFSMgr.GetMountRoot()
+			c.cmd.Dir = "/"
+			c.cmd.SysProcAttr.Cloneflags |= syscall.CLONE_NEWNS
+			c.cmd.SysProcAttr.Unshareflags |= syscall.CLONE_NEWNS
+		}
 
-	// Execute command
-	if err := c.cmd.Start(); err != nil {
-		return fmt.Errorf("failed starting command: %w", err)
+		// Pass control-groups directory FD to the process
+		if c.cgroupsMgr != nil {
+			c.cmd.SysProcAttr.CgroupFD, err = c.cgroupsMgr.GetControlGroupsFD()
+			if err != nil {
+				return err
+			}
+			c.cmd.SysProcAttr.Cloneflags |= syscall.CLONE_INTO_CGROUP
+			c.cmd.SysProcAttr.UseCgroupFD = true
+		}
+
+		// Execute command
+		if err := c.cmd.Start(); err != nil {
+			return fmt.Errorf("failed starting command: %w", err)
+		}
+		c.pgid, err = syscall.Getpgid(c.cmd.Process.Pid)
+		c.cmdState = cmdStateRunning
+
+		return nil
+	}
+	if err := changeStateToRunning(); err != nil {
+		return err
 	}
 
 	// Wait for the process to terminate
 	err := c.cmd.Wait()
+	// Move to terminated state and collect exit code and error
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.exitError = err
+	if c.cmd != nil && c.cmd.ProcessState != nil {
+		c.exitCode = c.cmd.ProcessState.ExitCode()
+	}
+
+	c.cmdState = cmdStateTerminated
 
 	// We will wait for all the goroutines to finish
 	return err
@@ -181,7 +206,7 @@ func (c *Command) readPipe(dst ReadChannel, src io.Reader) {
 		if n != 0 {
 			dst <- buf[:n]
 		}
-		if err != nil || c.closeReaders.Load() {
+		if err != nil {
 			close(dst)
 			break
 		}
@@ -191,32 +216,20 @@ func (c *Command) readPipe(dst ReadChannel, src io.Reader) {
 func (c *Command) kill() error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	if c.cmdState != cmdStateRunning ||
-		c.cmd == nil || c.cmd.Process == nil {
+	if c.cmdState != cmdStateRunning {
 		return fmt.Errorf("invalid command state to send signal")
 	}
-	c.closeReaders.Store(true)
 
-	if err := c.cmd.Process.Kill(); err != nil {
-		return fmt.Errorf("failed to kill process: %w", err)
-	}
-
-	return nil
+	return c.sendSignalToGroup(syscall.SIGKILL)
 }
 
 func (c *Command) sendSignalToGroup(sig syscall.Signal) error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
 	if c.cmdState != cmdStateRunning ||
 		c.cmd == nil || c.cmd.Process == nil {
 		return fmt.Errorf("invalid command state to send signal")
 	}
 
-	pgid, err := syscall.Getpgid(c.cmd.Process.Pid)
-	if err != nil {
-		return fmt.Errorf("failed getting group PID: %w", err)
-	}
-	if err := syscall.Kill(-pgid, sig); err != nil {
+	if err := syscall.Kill(-c.pgid, sig); err != nil {
 		return fmt.Errorf("failed to send signal to process group: %w", err)
 	}
 

@@ -101,10 +101,6 @@ func executeCommand(serverAddress, certsDir string, cmdCB func(client *client.Cl
 	defer logger.Sync()
 	logger.Infof("Starting client with config: " + config.String())
 	c := client.NewClient(&config, logger)
-	// Shutdown server on SIGINT or SIGTERM
-	shared.RegisterShutdownSigCallback(func() {
-		c.Finish()
-	})
 	if cmdCB != nil {
 		cmdCB(c)
 	}
