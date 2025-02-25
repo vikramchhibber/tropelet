@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os/exec"
 	"sync"
-	"sync/atomic"
 	"syscall"
 
 	"github.com/troplet/pkg/exec/cgroups"
@@ -40,8 +39,6 @@ type Command struct {
 	// comparison and transition, setting of exitError and exitCode
 	lock     sync.RWMutex
 	cmdState cmdStateType
-	// Flag to indicate stdout/stderr readers to close the channel
-	closeReaders atomic.Bool
 	// Process group id. Applicable only after the process has started
 	// successfully
 	pgid int

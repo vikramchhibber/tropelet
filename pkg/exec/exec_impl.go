@@ -206,7 +206,7 @@ func (c *Command) readPipe(dst ReadChannel, src io.Reader) {
 		if n != 0 {
 			dst <- buf[:n]
 		}
-		if err != nil || c.closeReaders.Load() {
+		if err != nil {
 			close(dst)
 			break
 		}
@@ -216,20 +216,11 @@ func (c *Command) readPipe(dst ReadChannel, src io.Reader) {
 func (c *Command) kill() error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	if c.cmdState != cmdStateRunning ||
-		c.cmd == nil || c.cmd.Process == nil {
+	if c.cmdState != cmdStateRunning {
 		return fmt.Errorf("invalid command state to send signal")
 	}
-	c.closeReaders.Store(true)
-	c.sendSignalToGroup(syscall.SIGKILL)
 
-	/*
-		if err := c.cmd.Process.Kill(); err != nil {
-			return fmt.Errorf("failed to kill process: %w", err)
-		}
-	*/
-
-	return nil
+	return c.sendSignalToGroup(syscall.SIGKILL)
 }
 
 func (c *Command) sendSignalToGroup(sig syscall.Signal) error {

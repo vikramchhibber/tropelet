@@ -35,6 +35,7 @@ func (d *testJobReadData) testStartRead() {
 	d.wg.Add(1)
 	go func() {
 		numChannels := 2
+		defer d.wg.Done()
 		for numChannels > 0 {
 			select {
 			case data, ok := <-d.stdoutChan:
@@ -53,7 +54,6 @@ func (d *testJobReadData) testStartRead() {
 				d.stderrStrBuilder.Write(data)
 			}
 		}
-		d.wg.Done()
 	}()
 }
 
@@ -169,6 +169,8 @@ func TestNewPIDNetNS(t *testing.T) {
 			expectStdoutStr: "1\n",
 		},
 		{
+			// This will ideally fail if the network namespace
+			// is not isolated
 			testName:        "Add localhost loopback address on lo interface",
 			command:         "ip",
 			args:            []string{"addr", "add", "127.0.0.1/8", "dev", "lo"},
