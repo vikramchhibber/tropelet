@@ -51,8 +51,7 @@ func (s *Server) Start() error {
 		return err
 	}
 	s.grpcServer = grpc.NewServer(grpc.Creds(tlsCredentials),
-		grpc.UnaryInterceptor(s.setPeerCertCNInCtx),
-		grpc.StreamInterceptor(s.setPeerCertCNInCtxForStream))
+		grpc.UnaryInterceptor(s.setPeerCertCNInCtx))
 	proto.RegisterJobServiceServer(s.grpcServer, s)
 	listen, err := net.Listen("tcp", s.config.Address)
 	if err != nil {
@@ -102,12 +101,13 @@ func (s *Server) LaunchJob(ctx context.Context,
 }
 
 func (s *Server) AttachJob(req *proto.AttachJobRequest, stream proto.JobService_AttachJobServer) error {
-	// TODO: Config candidate
 	stdoutChan := make(chan *proto.JobStreamEntry)
 	stderrChan := make(chan *proto.JobStreamEntry)
 	ctx := stream.Context()
-	commonName := s.getCNFromCtx(ctx)
-	s.logger.Warnf("%s %s", commonName, req.Id)
+	commonName, err := s.getCNFromContext(ctx)
+	if err != nil {
+		return err
+	}
 	subscriberID, err := s.jobManager.Attach(ctx, commonName, req.Id, stdoutChan, stderrChan)
 	if err != nil {
 		return err
@@ -115,6 +115,7 @@ func (s *Server) AttachJob(req *proto.AttachJobRequest, stream proto.JobService_
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		numChannels := 2
 		for numChannels > 0 {
 			select {
@@ -141,7 +142,6 @@ func (s *Server) AttachJob(req *proto.AttachJobRequest, stream proto.JobService_
 			}
 		}
 		// If we are here, the channels have closed
-		wg.Done()
 	}()
 	go func() {
 		<-ctx.Done()
@@ -150,7 +150,7 @@ func (s *Server) AttachJob(req *proto.AttachJobRequest, stream proto.JobService_
 		s.jobManager.Detach(ctx, commonName, req.Id, subscriberID)
 	}()
 
-	// We will wait the client channels to close
+	// We will wait for the client channels to close
 	wg.Wait()
 
 	return nil
@@ -158,7 +158,10 @@ func (s *Server) AttachJob(req *proto.AttachJobRequest, stream proto.JobService_
 
 func (s *Server) TerminateJob(ctx context.Context,
 	req *proto.TerminateJobRequest) (*proto.TerminateJobResponse, error) {
-	s.jobManager.Terminate(ctx, s.getCNFromCtx(ctx), req.Id)
+	err := s.jobManager.Terminate(ctx, s.getCNFromCtx(ctx), req.Id)
+	if err != nil {
+		return nil, err
+	}
 
 	return &proto.TerminateJobResponse{}, nil
 }
@@ -183,40 +186,29 @@ func (s *Server) createTLSTransportCredentials() (credentials.TransportCredentia
 
 func (s *Server) setPeerCertCNInCtx(ctx context.Context, req interface{},
 	info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	peer, ok := peer.FromContext(ctx)
-	if !ok {
-		return nil, fmt.Errorf("failed getting remote peer")
+	commonName, err := s.getCNFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
-	tlsInfo, ok := peer.AuthInfo.(credentials.TLSInfo)
-	if !ok || tlsInfo.State.VerifiedChains == nil {
-		return nil, fmt.Errorf("failed getting TLS info from remote peer")
-	}
-	commonName := tlsInfo.State.VerifiedChains[0][0].Subject.CommonName
-	if commonName == "" {
-		return nil, fmt.Errorf("invalid CN received")
-	}
-	s.logger.Infof("Got CN " + commonName)
 
 	return handler(context.WithValue(ctx, cnCtxKey, commonName), req)
 }
 
-func (s *Server) setPeerCertCNInCtxForStream(srv interface{}, ss grpc.ServerStream,
-	info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	peer, ok := peer.FromContext(ss.Context())
+func (s *Server) getCNFromContext(ctx context.Context) (string, error) {
+	peer, ok := peer.FromContext(ctx)
 	if !ok {
-		return fmt.Errorf("failed getting remote peer")
+		return "", fmt.Errorf("failed getting remote peer")
 	}
 	tlsInfo, ok := peer.AuthInfo.(credentials.TLSInfo)
 	if !ok || tlsInfo.State.VerifiedChains == nil {
-		return fmt.Errorf("failed getting TLS info from remote peer")
+		return "", fmt.Errorf("failed getting TLS info from remote peer")
 	}
 	commonName := tlsInfo.State.VerifiedChains[0][0].Subject.CommonName
 	if commonName == "" {
-		return fmt.Errorf("invalid CN received")
+		return "", fmt.Errorf("invalid CN received")
 	}
-	s.logger.Infof("Got CN " + commonName)
 
-	return handler(srv, ss)
+	return commonName, nil
 }
 
 func (s *Server) getCNFromCtx(ctx context.Context) string {

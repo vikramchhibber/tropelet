@@ -74,12 +74,13 @@ func (m *JobManager) Launch(ctx context.Context, clientID string,
 	return jobID
 }
 
-func (m *JobManager) Terminate(ctx context.Context, clientID string, jobID string) {
+func (m *JobManager) Terminate(ctx context.Context, clientID string, jobID string) error {
 	jobInfo := m.getJobInfo(clientID, jobID)
 	if jobInfo == nil {
-		return
+		return fmt.Errorf("job id %s not found", jobID)
 	}
-	jobInfo.Terminate()
+
+	return jobInfo.Terminate()
 }
 
 func (m *JobManager) GetJobStatus(ctx context.Context,
@@ -88,8 +89,9 @@ func (m *JobManager) GetJobStatus(ctx context.Context,
 	if jobInfo == nil {
 		return nil, fmt.Errorf("job id %s not found", jobID)
 	}
+	info := jobInfo.GetJobStatus()
 
-	return &jobInfo.info, nil
+	return &info, nil
 }
 
 func (m *JobManager) Attach(ctx context.Context, clientID string, jobID string,
@@ -137,7 +139,7 @@ func (m *JobManager) Finish() {
 	// Cleanup all the jobs
 	for _, clientInfo := range m.clientInfoMap {
 		for _, jobInfo := range clientInfo.jobInfoMap {
-			jobInfo.Finish()
+			jobInfo.Terminate()
 		}
 	}
 }
@@ -147,7 +149,7 @@ func (m *JobManager) getJobInfo(clientID string, jobID string) *JobInfo {
 	defer m.lock.RUnlock()
 	clientInfo, found := m.clientInfoMap[clientID]
 	if !found {
-		m.logger.Errorf("Client info for id %s not found", clientID)
+		m.logger.Errorf("Job info for client id %s not found", clientID)
 		return nil
 	}
 	jobInfo, found := clientInfo.jobInfoMap[jobID]

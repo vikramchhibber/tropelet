@@ -52,18 +52,18 @@ func main() {
 	}
 	wg.Add(1)
 	go readFunc()
-	var cmd exec.Command
+	var cmd *exec.Command
 	if len(os.Args) == 2 {
 		cmd, err = exec.NewCommand(os.Args[1], []string{},
 			exec.WithStdoutChan(stdoutChan), exec.WithStderrChan(stderrChan),
 			exec.WithNewRootBase("./"), exec.WithCPULimit(100, 1000),
-			exec.WithNewPidNS(), exec.WithNewNetNS(), exec.WithMemoryLimit(4*1024),
+			exec.WithUsePIDNS(), exec.WithUseNetNS(), exec.WithMemoryLimit(4*1024),
 			exec.WithIOLimits(major, minor, 4*1024, 1024))
 	} else if len(os.Args) > 2 {
 		cmd, err = exec.NewCommand(os.Args[1], os.Args[2:],
 			exec.WithStdoutChan(stdoutChan), exec.WithStderrChan(stderrChan),
 			exec.WithNewRootBase("./"), exec.WithCPULimit(100, 1000),
-			exec.WithNewPidNS(), exec.WithNewNetNS(), exec.WithMemoryLimit(4*1024),
+			exec.WithUsePIDNS(), exec.WithUseNetNS(), exec.WithMemoryLimit(4*1024),
 			exec.WithIOLimits(major, minor, 4*1024, 1024))
 	}
 	if err != nil {
@@ -84,12 +84,9 @@ func main() {
 		}()
 	*/
 	cmd.Execute(context.Background())
-	err = cmd.GetExitError()
-	if err != nil {
-		fmt.Printf("%s %d\n", err.Error(), cmd.GetExitCode())
-	} else {
-		fmt.Printf("%d\n", cmd.GetExitCode())
-	}
+	exitErr, _ := cmd.GetExitError()
+	exitCode, _ := cmd.GetExitCode()
+	fmt.Printf("%s %d\n", exitErr, exitCode)
 	wg.Wait()
 	cmd.Finish()
 	fmt.Printf(cmd.String() + "\n")

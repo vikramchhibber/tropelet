@@ -62,7 +62,7 @@ func (d *testJobReadData) testWait() {
 }
 
 func TestBasic(t *testing.T) {
-	createCommand := func(d *testJobReadData) (Command, error) {
+	createCommand := func(d *testJobReadData) (*Command, error) {
 		return NewCommand(d.command, d.args,
 			WithStdoutChan(d.stdoutChan),
 			WithStderrChan(d.stderrChan))
@@ -122,11 +122,7 @@ func TestBasic(t *testing.T) {
 		}
 		// This will wait for the command to finish
 		cmd.Execute(ctx)
-		cmd.Finish()
 		d.testWait()
-		if diff := cmp.Diff(d.expectError, cmd.GetExitError() != nil); diff != "" {
-			t.Errorf("Unexpected result: %s", diff)
-		}
 		if d.expectStdoutStr != "" {
 			if diff := cmp.Diff(d.expectStdoutStr, d.stdoutStrBuilder.String()); diff != "" {
 				t.Errorf("Unexpected result: %s", diff)
@@ -138,13 +134,18 @@ func TestBasic(t *testing.T) {
 			}
 		}
 		if d.expectedErrorStr != "" {
-			if diff := cmp.Diff(true, cmd.GetExitError() != nil); diff != "" {
-				t.Fatalf("Unexpected result: %s", diff)
+			exitErr, err := cmd.GetExitError()
+			if diff := cmp.Diff(nil, err); diff != "" {
+				t.Errorf("Unexpected result: %s", diff)
 			}
-			if diff := cmp.Diff(d.expectedErrorStr, cmd.GetExitError().Error()); diff != "" {
+			if diff := cmp.Diff(true, exitErr != nil); diff != "" {
+				t.Errorf("Unexpected result: %s", diff)
+			}
+			if diff := cmp.Diff(d.expectedErrorStr, exitErr.Error()); diff != "" {
 				t.Errorf("Unexpected result: %s", diff)
 			}
 		}
+		cmd.Finish()
 		if cancel != nil {
 			cancel()
 		}
@@ -152,7 +153,7 @@ func TestBasic(t *testing.T) {
 }
 
 func TestNewPIDNetNS(t *testing.T) {
-	createCommand := func(d *testJobReadData) (Command, error) {
+	createCommand := func(d *testJobReadData) (*Command, error) {
 		return NewCommand(d.command, d.args,
 			WithStdoutChan(d.stdoutChan),
 			WithStderrChan(d.stderrChan),
@@ -189,11 +190,7 @@ func TestNewPIDNetNS(t *testing.T) {
 		}
 		// This will wait for the command to finish
 		cmd.Execute(ctx)
-		cmd.Finish()
 		d.testWait()
-		if diff := cmp.Diff(d.expectError, cmd.GetExitError() != nil); diff != "" {
-			t.Errorf("Unexpected result: %s", diff)
-		}
 		if d.expectStdoutStr != "" {
 			if diff := cmp.Diff(d.expectStdoutStr, d.stdoutStrBuilder.String()); diff != "" {
 				t.Errorf("Unexpected result: %s", diff)
@@ -205,13 +202,18 @@ func TestNewPIDNetNS(t *testing.T) {
 			}
 		}
 		if d.expectedErrorStr != "" {
-			if diff := cmp.Diff(true, cmd.GetExitError() != nil); diff != "" {
-				t.Fatalf("Unexpected result: %s", diff)
+			exitErr, err := cmd.GetExitError()
+			if diff := cmp.Diff(nil, err); diff != "" {
+				t.Errorf("Unexpected result: %s", diff)
 			}
-			if diff := cmp.Diff(d.expectedErrorStr, cmd.GetExitError().Error()); diff != "" {
+			if diff := cmp.Diff(true, exitErr != nil); diff != "" {
+				t.Errorf("Unexpected result: %s", diff)
+			}
+			if diff := cmp.Diff(d.expectedErrorStr, exitErr.Error()); diff != "" {
 				t.Errorf("Unexpected result: %s", diff)
 			}
 		}
+		cmd.Finish()
 		if cancel != nil {
 			cancel()
 		}
@@ -219,7 +221,7 @@ func TestNewPIDNetNS(t *testing.T) {
 }
 
 func TestNewRootCGroups(t *testing.T) {
-	createCommand := func(d *testJobReadData) (Command, error) {
+	createCommand := func(d *testJobReadData) (*Command, error) {
 		return NewCommand(d.command, d.args,
 			WithStdoutChan(d.stdoutChan),
 			WithStderrChan(d.stderrChan),
@@ -252,11 +254,7 @@ func TestNewRootCGroups(t *testing.T) {
 		}
 		// This will wait for the command to finish
 		cmd.Execute(ctx)
-		cmd.Finish()
 		d.testWait()
-		if diff := cmp.Diff(d.expectError, cmd.GetExitError() != nil); diff != "" {
-			t.Errorf("Unexpected result: %s", diff)
-		}
 		if d.expectStdoutStr != "" {
 			if diff := cmp.Diff(d.expectStdoutStr, d.stdoutStrBuilder.String()); diff != "" {
 				t.Errorf("Unexpected result: %s", diff)
@@ -268,13 +266,18 @@ func TestNewRootCGroups(t *testing.T) {
 			}
 		}
 		if d.expectedErrorStr != "" {
-			if diff := cmp.Diff(true, cmd.GetExitError() != nil); diff != "" {
-				t.Fatalf("Unexpected result: %s", diff)
+			exitErr, err := cmd.GetExitError()
+			if diff := cmp.Diff(nil, err); diff != "" {
+				t.Errorf("Unexpected result: %s", diff)
 			}
-			if diff := cmp.Diff(d.expectedErrorStr, cmd.GetExitError().Error()); diff != "" {
+			if diff := cmp.Diff(true, exitErr != nil); diff != "" {
+				t.Errorf("Unexpected result: %s", diff)
+			}
+			if diff := cmp.Diff(d.expectedErrorStr, exitErr.Error()); diff != "" {
 				t.Errorf("Unexpected result: %s", diff)
 			}
 		}
+		cmd.Finish()
 		if cancel != nil {
 			cancel()
 		}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,11 +24,15 @@ type ControlChanEntry struct {
 type JobInfo struct {
 	logger shared.Logger
 	info   proto.JobEntry
-	cmd    exec.Command
-	wg     sync.WaitGroup
+	cmd    *exec.Command
+	// Wait group for stdout/stderr read and cmd execute go routines cleanup
+	wg sync.WaitGroup
 	// Control chan to communicate attach or detach of streams
 	controlChan chan *ControlChanEntry
-	counter     atomic.Uint64
+	// Lock to protect subscriber counter and terminated flag
+	lock              sync.RWMutex
+	subscriberCounter uint64
+	isTerminated      bool
 }
 
 func NewJobInfo(logger shared.Logger, cmd string, args []string) *JobInfo {
@@ -39,22 +42,6 @@ func NewJobInfo(logger shared.Logger, cmd string, args []string) *JobInfo {
 	jobInfo.info.Args = args
 
 	return jobInfo
-}
-
-func (j *JobInfo) Terminate() {
-	if j.cmd != nil {
-		j.cmd.Finish()
-	}
-}
-
-func (j *JobInfo) Finish() {
-	if j.cmd != nil {
-		// The exec library ignores accidental
-		// second time Finish call
-		j.cmd.Finish()
-	}
-	close(j.controlChan)
-	j.wg.Wait()
 }
 
 func (j *JobInfo) Launch(rootBase string, quotaMillSeconds, periodMillSeconds int64,
@@ -81,47 +68,108 @@ func (j *JobInfo) Launch(rootBase string, quotaMillSeconds, periodMillSeconds in
 
 	// Prepare reading stdout and stderr streams
 	j.wg.Add(1)
-	go j.readStreams(stdoutChan, stderrChan)
+	go func() {
+		defer j.wg.Done()
+		j.readStreams(stdoutChan, stderrChan)
+	}()
 
 	// Launch command execution asynchronously.
 	j.wg.Add(1)
 	go func() {
+		defer j.wg.Done()
 		// This will block till the command completes.
 		// Pass non timeout context.
 		j.logger.Infof("Job: %s is running", j.info.Id)
 		cmd.Execute(context.Background())
 		// Command got terminated here
 		var exitError string
-		if err := cmd.GetExitError(); err != nil {
-			exitError = err.Error()
+		exitErr, err := cmd.GetExitError()
+		if err != nil {
+			j.logger.Errorf("failed getting exit error: %v", err)
+		} else if exitErr != nil {
+			exitError = exitErr.Error()
 		}
-		j.updateJobEntryOnExit(cmd.GetID(), exitError, cmd.GetExitCode())
+		exitCode, err := cmd.GetExitCode()
+		if err != nil {
+			j.logger.Errorf("failed getting exit code: %v", err)
+		}
+		j.updateJobEntryOnExit(cmd.GetID(), exitError, exitCode)
 		// Finish must be called if command object is created
-		cmd.Finish()
-		j.wg.Done()
+		if err := cmd.Finish(); err != nil {
+			j.logger.Errorf("finish failed: %v", err)
+		}
 	}()
 
-	return j.info.Id
+	return cmd.GetID()
+}
+
+func (j *JobInfo) Terminate() error {
+	terminateCmd := func() error {
+		j.lock.Lock()
+		defer j.lock.Unlock()
+		if j.isTerminated {
+			return fmt.Errorf("job already terminated")
+		}
+		// cmd can be null if it failed the initialization
+		if j.cmd != nil {
+			if err := j.cmd.Kill(); err != nil {
+				j.logger.Errorf("failed killing job: %v", err)
+			}
+		}
+		j.isTerminated = true
+
+		return nil
+	}
+	if err := terminateCmd(); err != nil {
+		return err
+	}
+	j.wg.Wait()
+	close(j.controlChan)
+
+	return nil
 }
 
 func (j *JobInfo) Attach(stdoutChan, stderrChan chan *proto.JobStreamEntry) (uint64, error) {
-	if j.cmd == nil || j.cmd.IsTerminated() {
+	j.lock.Lock()
+	defer j.lock.Unlock()
+	if j.isTerminated {
 		return 0, fmt.Errorf("job already terminated")
 	}
-	subscriberID := j.counter.Add(1)
+	j.subscriberCounter++
 
 	// Send control message to add these streams
-	j.controlChan <- &ControlChanEntry{id: subscriberID,
-		stdoutChan: stdoutChan,
-		stderrChan: stderrChan,
-		isAdd:      true}
+	if len(j.controlChan) < cap(j.controlChan) {
+		j.controlChan <- &ControlChanEntry{id: j.subscriberCounter,
+			stdoutChan: stdoutChan,
+			stderrChan: stderrChan,
+			isAdd:      true}
+	} else {
+		return 0, fmt.Errorf("reached maximum control channel capacity")
+	}
 
-	return subscriberID, nil
+	return j.subscriberCounter, nil
 }
 
 func (j *JobInfo) Detach(subscriberID uint64) {
+	j.lock.RLock()
+	defer j.lock.RUnlock()
+	if j.isTerminated {
+		return
+	}
 	// Send control message to remove these streams
-	j.controlChan <- &ControlChanEntry{id: subscriberID, isAdd: false}
+	if len(j.controlChan) < cap(j.controlChan) {
+		j.controlChan <- &ControlChanEntry{id: subscriberID, isAdd: false}
+	} else {
+		// TODO: The caller might need to retry
+		j.logger.Errorf("reached maximum control channel capacity")
+	}
+}
+
+func (j *JobInfo) GetJobStatus() proto.JobEntry {
+	j.lock.RLock()
+	defer j.lock.RUnlock()
+
+	return j.info
 }
 
 func (j *JobInfo) readStreams(stdoutChan, stderrChan exec.ReadChannel) {
@@ -189,15 +237,17 @@ done:
 	for _, client := range stderrChanMap {
 		close(client)
 	}
-	j.wg.Done()
 }
 
 func (j *JobInfo) updateJobEntryOnExit(jobID string, exitError string,
 	exitCode int) string {
+	j.lock.Lock()
+	defer j.lock.Unlock()
 	j.info.Id = jobID
 	j.info.EndTs = timestamppb.New(time.Now())
 	j.info.ExitError = exitError
 	j.info.ExitCode = int32(exitCode)
+	j.isTerminated = true
 	j.logger.Infof("Job: %s has terminated", j.info.Id)
 
 	return j.info.Id
