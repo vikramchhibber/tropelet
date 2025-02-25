@@ -63,14 +63,19 @@ func newCommand(name string, args []string, options ...CommandOption) (execCmd *
 	return execCmd, nil
 }
 
-func (c *Command) finish() {
+func (c *Command) finish() error {
 	changeState := func() bool {
 		c.lock.Lock()
 		defer c.lock.Unlock()
-		return c.transitionState(cmdStateFinished)
+		if c.cmdState == cmdStateTerminated ||
+			c.cmdState == cmdStateInit {
+			c.cmdState = cmdStateFinished
+			return true
+		}
+		return false
 	}
 	if !changeState() {
-		return
+		return fmt.Errorf("invalid command state")
 	}
 
 	if c.cgroupsMgr != nil {
@@ -79,6 +84,8 @@ func (c *Command) finish() {
 	if c.mountFSMgr != nil {
 		c.mountFSMgr.Finish()
 	}
+
+	return nil
 }
 
 func (c *Command) setCPULimit(quotaMillSeconds, periodMillSeconds int64) {
@@ -101,17 +108,18 @@ func (c *Command) setIOLimits(deviceMajorNum, deviceMinorNum int32, rbps, wbps i
 }
 
 func (c *Command) execute(ctx context.Context) error {
-	var waitGroup sync.WaitGroup
 	c.cmd = exec.CommandContext(ctx, c.name, c.args...)
+	var wg sync.WaitGroup
+	defer wg.Wait()
 	if c.stdoutChan != nil {
 		stdoutPipe, err := c.cmd.StdoutPipe()
 		if err != nil {
 			return fmt.Errorf("failed creating stdout pipe: %w", err)
 		}
-		waitGroup.Add(1)
+		wg.Add(1)
 		go func() {
 			c.readPipe(c.stdoutChan, stdoutPipe)
-			waitGroup.Done()
+			wg.Done()
 		}()
 	}
 	if c.stderrChan != nil {
@@ -119,12 +127,13 @@ func (c *Command) execute(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed creating stderr pipe: %w", err)
 		}
-		waitGroup.Add(1)
+		wg.Add(1)
 		go func() {
 			c.readPipe(c.stderrChan, stderrPipe)
-			waitGroup.Done()
+			wg.Done()
 		}()
 	}
+	// TODO: Config candidate
 	c.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if c.usePIDNS {
 		c.cmd.SysProcAttr.Cloneflags |= syscall.CLONE_NEWPID
@@ -160,8 +169,6 @@ func (c *Command) execute(ctx context.Context) error {
 	err := c.cmd.Wait()
 
 	// We will wait for all the goroutines to finish
-	waitGroup.Wait()
-
 	return err
 }
 
@@ -174,11 +181,27 @@ func (c *Command) readPipe(dst ReadChannel, src io.Reader) {
 		if n != 0 {
 			dst <- buf[:n]
 		}
-		if err != nil {
+		if err != nil || c.closeReaders.Load() {
 			close(dst)
 			break
 		}
 	}
+}
+
+func (c *Command) kill() error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if c.cmdState != cmdStateRunning ||
+		c.cmd == nil || c.cmd.Process == nil {
+		return fmt.Errorf("invalid command state to send signal")
+	}
+	c.closeReaders.Store(true)
+
+	if err := c.cmd.Process.Kill(); err != nil {
+		return fmt.Errorf("failed to kill process: %w", err)
+	}
+
+	return nil
 }
 
 func (c *Command) sendSignalToGroup(sig syscall.Signal) error {
@@ -198,27 +221,4 @@ func (c *Command) sendSignalToGroup(sig syscall.Signal) error {
 	}
 
 	return nil
-}
-
-func (c *Command) transitionState(newState cmdStateType) bool {
-	shouldTransition := func() bool {
-		switch newState {
-		case cmdStateInit:
-			return c.cmdState == ""
-		case cmdStateRunning:
-			return c.cmdState == cmdStateInit
-		case cmdStateTerminated:
-			return c.cmdState == cmdStateRunning
-		case cmdStateFinished:
-			return c.cmdState == cmdStateInit ||
-				c.cmdState == cmdStateTerminated
-		}
-		return false
-	}
-	if shouldTransition() {
-		c.cmdState = newState
-		return true
-	}
-
-	return false
 }

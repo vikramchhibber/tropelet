@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os/exec"
 	"sync"
+	"sync/atomic"
 	"syscall"
 
 	"github.com/troplet/pkg/exec/cgroups"
@@ -39,6 +40,8 @@ type Command struct {
 	// comparison and transition, setting of exitError and exitCode
 	lock     sync.RWMutex
 	cmdState cmdStateType
+	// Flag to indicate stdout/stderr readers to close the channel
+	closeReaders atomic.Bool
 }
 
 // Channel type to send stdout or stderror data to application
@@ -124,33 +127,34 @@ func (c *Command) String() string {
 
 // Executes this command. This call blocks till the
 // command has terminated.
-func (c *Command) Execute(ctx context.Context) {
+func (c *Command) Execute(ctx context.Context) error {
 	// Move to running state
 	changeStateToRunning := func() bool {
 		c.lock.Lock()
 		defer c.lock.Unlock()
-		return c.transitionState(cmdStateRunning)
+		if c.cmdState != cmdStateInit {
+			return false
+		}
+		c.cmdState = cmdStateRunning
+		return true
 	}
 	if !changeStateToRunning() {
-		return
+		return fmt.Errorf("invalid command state")
 	}
 
 	err := c.execute(ctx)
 
 	// Move to terminated state and collect exit code and error
-	changeStateToTerminated := func() {
-		c.lock.Lock()
-		defer c.lock.Unlock()
-		c.exitError = err
-		if c.cmd != nil && c.cmd.ProcessState != nil {
-			c.exitCode = c.cmd.ProcessState.ExitCode()
-		}
-		// Not sure if this state transaciton fails.
-		// This can happen if the user called Finish before
-		// the command has terminated
-		c.transitionState(cmdStateTerminated)
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.exitError = err
+	if c.cmd != nil && c.cmd.ProcessState != nil {
+		c.exitCode = c.cmd.ProcessState.ExitCode()
 	}
-	changeStateToTerminated()
+
+	c.cmdState = cmdStateTerminated
+
+	return err
 }
 
 // Checks if the command has terminated
@@ -192,15 +196,15 @@ func (c *Command) SendTermSignal() error {
 	return c.sendSignalToGroup(syscall.SIGTERM)
 }
 
-// Tries terminating the command forcefully by sending
+// Terminates the command forcefully by sending
 // SIGKILL signal if running. Will return error in case
-// the command is not running or kill fails.
-func (c *Command) SendKillSignal() error {
-	return c.sendSignalToGroup(syscall.SIGKILL)
+// the command is not running.
+func (c *Command) Kill() error {
+	return c.kill()
 }
 
-// Abruptly terminates the command by sending SIGKILL
-// signal and performs necessary cleanups.
-func (c *Command) Finish() {
-	c.finish()
+// Performs cleanup of terminated command.
+// Must be called after the command has terminated.
+func (c *Command) Finish() error {
+	return c.finish()
 }
